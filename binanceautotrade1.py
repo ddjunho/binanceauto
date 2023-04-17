@@ -15,15 +15,15 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import regularizers
-from upbit_keys import access, secret
+from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
 buy_unit = 0.2  # 분할 매수 금액 단위 설정
 
 # 로그인
-upbit = pyupbit.Upbit(access, secret)
+client = Client(api_key, api_secret)
 
-COIN = "KRW-BTC" #코인명
+COIN = "BTCUSDT" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 def get_balance(ticker):
     # 잔고 조회
