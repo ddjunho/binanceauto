@@ -167,12 +167,12 @@ def send_message(message):
     bot.sendMessage(chat_id, message)
 # 스케줄러 실행
 def job():
-    krw = get_balance("KRW")
-    btc = get_balance("BTC")
+    usd = get_balance('USDT')
+    btc = get_balance('BTC')
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = krw * 0.9995 * buy_unit # 분할 매수 금액 계산
+    buy_amount = usdt_balance * buy_unit # 분할 매수 금액 계산
     start = True
     bull_market = False
     while stop == False:
@@ -180,40 +180,40 @@ def job():
             now = datetime.now()
             current_price = get_current_price(COIN)
             if now.hour % 3 == 0 and now.minute == 0 or start == True:
-                if krw <= get_balance("KRW"):
-                    krw = get_balance("KRW")
-                    buy_amount = krw * 0.9995 * buy_unit
+                if usd <= get_balance('USDT'):
+                    usd = get_balance('USDT')
+                    buy_amount = usdt_balance * buy_unit
                 target_price = predict_target_price("low")
                 sell_price = predict_target_price("high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = 1-is_bull_market(COIN, "minute60")
+                hour_1 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_1HOUR")
                 hour_3 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_3HOUR")
-                hour_6 = 1-is_bull_market(COIN, "minute360")
-                hour_24 = 1-is_bull_market(COIN, "day")
+                hour_6 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_6HOUR")
+                hour_24 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1DAY)
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n3시간뒤 크거나 같을 확률 예측 : {hour_3*100}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {krw}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}"
+                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n3시간뒤 크거나 같을 확률 예측 : {hour_3*100}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}"
                 send_message(message)
                 start = False
             # 매수 조건
             if current_price <= target_price + PriceEase:
-                krw = get_balance("KRW")
+                usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if krw > 10000 and target_price + PriceEase < sell_price-(PriceEase*3):
-                        if get_balance("KRW") < krw * buy_unit:
-                            buy_amount = krw * 0.9995
-                        upbit.buy_market_order(COIN, buy_amount)
+                    if usd > 10 and target_price + PriceEase < sell_price-(PriceEase*3):
+                        if get_balance('USDT') < usd * buy_unit:
+                            buy_amount = usd
+                        client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
                         last_buy_time = now
                         multiplier = 1
                         print(now, "매수")
             # 매도 조건
             else:
                 if current_price >= sell_price-(PriceEase*multiplier):
-                    btc = get_balance("BTC")
+                    btc = get_balance('BTC')
                     if btc > 0.00008 and btc is not None:
-                        upbit.sell_market_order(COIN, btc)
+                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
             if last_buy_time is not None:
