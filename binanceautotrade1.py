@@ -1,7 +1,6 @@
 import time
 import datetime
 import json
-import pyupbit
 import pandas as pd
 import numpy as np
 import schedule
