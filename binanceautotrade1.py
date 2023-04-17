@@ -99,7 +99,7 @@ def predict_target_price(target_type):
     return float(predicted_price)
 
 def is_bull_market(ticker, time):
-    candles = client.futures_klines(symbol=ticker, interval=Client.KLINE_INTERVAL_3HOUR, limit=1000)
+    candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
     candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 기술적 지표 추가
     candles['ma5'] = candles['close'].rolling(window=5).mean()
@@ -185,9 +185,9 @@ def job():
                 target_price = predict_target_price("low")
                 sell_price = predict_target_price("high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_1HOUR")
-                hour_3 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_3HOUR")
-                hour_6 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_6HOUR")
+                hour_1 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1HOUR)
+                hour_3 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_3HOUR)
+                hour_6 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_6HOUR)
                 hour_24 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1DAY)
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
                     bull_market = True
