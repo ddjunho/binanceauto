@@ -9,6 +9,7 @@ import telepot
 import tensorflow as tf
 import requests.exceptions
 import simplejson.errors
+from binance.client import Client
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -19,14 +20,17 @@ from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
 buy_unit = 0.2  # 분할 매수 금액 단위 설정
 
+# 로그인
+upbit = pyupbit.Upbit(access, secret)
+
 COIN = "KRW-BTC" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 def get_balance(ticker):
-    # 원화 잔고 조회
+    # 잔고 조회
     try:
-        balances = upbit.get_balances()
+        balances = client.futures_account_balance()
         for b in balances:
-            if b['currency'] == ticker:
+            if b['asset'] == ticker:
                 if b['balance'] is not None:
                     return float(b['balance'])
                 else:
@@ -36,36 +40,35 @@ def get_balance(ticker):
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
     return 0
+
 def get_current_price(ticker):
     # 현재가 조회
     try:
-        return pyupbit.get_orderbook(ticker=ticker)["orderbook_units"][0]["ask_price"]
-    except:
-        return pyupbit.get_orderbook(ticker=ticker)["orderbook_units"][0]["bid_price"]
+        return float(client.futures_symbol_ticker(symbol=ticker)['price'])
+    except Exception as e:
+        print(e)
 
 def predict_target_price(target_type):
     with open(f"{target_type}.json") as f:
         input_data = json.load(f)
     ticker = input_data['arguments']['ticker']
     target_type = input_data['arguments']['target_type']
+    client = Client(api_key, api_secret)
     # 데이터 불러오기
-    df1 = pyupbit.get_ohlcv(ticker, interval="minute180", count=200)
-    df2 = pyupbit.get_ohlcv(ticker, interval="minute180", count=200, to=df1.index[0])
-    df3 = pyupbit.get_ohlcv(ticker, interval="minute180", count=200, to=df2.index[0])
-    df4 = pyupbit.get_ohlcv(ticker, interval="minute180", count=200, to=df3.index[0])
-    DF = pd.concat([df4, df3, df2, df1])
+    candles = client.futures_klines(symbol=ticker, interval=Client.KLINE_INTERVAL_3HOUR, limit=1000)
+    df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
-    X = DF[['open', 'high', 'low', 'close', 'volume']].values
+    X = df.values
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
     # 출력 데이터 전처리
-    y = DF[target_type].values
+    y = df[target_type].values
     y_scaler = StandardScaler()
     y = y_scaler.fit_transform(y.reshape((-1, 1)))
     # 학습 데이터 생성
     X_train = []
     y_train = []
-    data=799
+    data=999
     for i in range(data, len(X)):
         X_train.append(X[i - data:i, :])
         y_train.append(y[i, 0])
@@ -85,11 +88,11 @@ def predict_target_price(target_type):
     # 학습
     model.fit(X_train, y_train, epochs=100, verbose=1)
     # 새로운 데이터에 대한 예측
-    last_data = DF[['open', 'high', 'low', 'close', 'volume']].iloc[-data:].values
+    last_data = df.values.iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
     last_data = (last_data - last_data_mean) / last_data_std
-    # 예측할 데이터의 shape를 (1,799, 5)로 변경
+    # 예측할 데이터의 shape를 (1,999, values)로 변경
     last_data = np.expand_dims(last_data, axis=0)
     predicted_price = model.predict(last_data)
     predicted_price = y_scaler.inverse_transform(predicted_price)
@@ -97,39 +100,36 @@ def predict_target_price(target_type):
     return float(predicted_price)
 
 def is_bull_market(ticker, time):
-    df1 = pyupbit.get_ohlcv(ticker, interval=time, count=200)
-    df2 = pyupbit.get_ohlcv(ticker, interval=time, count=200, to=df1.index[0])
-    df3 = pyupbit.get_ohlcv(ticker, interval=time, count=200, to=df2.index[0])
-    df4 = pyupbit.get_ohlcv(ticker, interval=time, count=200, to=df3.index[0])
-    DF = pd.concat([df4, df3, df2, df1])
+    candles = client.futures_klines(symbol=ticker, interval=Client.KLINE_INTERVAL_3HOUR, limit=1000)
+    candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 기술적 지표 추가
-    DF['ma5'] = DF['close'].rolling(window=5).mean()
-    DF['ma10'] = DF['close'].rolling(window=10).mean()
-    DF['ma20'] = DF['close'].rolling(window=20).mean()
-    DF['ma60'] = DF['close'].rolling(window=60).mean()
-    DF['ma120'] = DF['close'].rolling(window=120).mean()
+    candles['ma5'] = candles['close'].rolling(window=5).mean()
+    candles['ma10'] = candles['close'].rolling(window=10).mean()
+    candles['ma20'] = candles['close'].rolling(window=20).mean()
+    candles['ma60'] = candles['close'].rolling(window=60).mean()
+    candles['ma120'] = candles['close'].rolling(window=120).mean()
     # RSI 계산
-    delta = DF['close'].diff()
+    delta = candles['close'].diff()
     up = delta.clip(lower=0)
     down = -1 * delta.clip(upper=0)
     ema_up = up.ewm(com=13, adjust=False).mean()
     ema_down = down.ewm(com=13, adjust=False).mean()
     rs = ema_up / ema_down
-    DF['rsi'] = 100 - (100 / (1 + rs))
+    candles['rsi'] = 100 - (100 / (1 + rs))
     # MACD 계산
-    exp1 = DF['close'].ewm(span=12, adjust=False).mean()
-    exp2 = DF['close'].ewm(span=26, adjust=False).mean()
+    exp1 = candles['close'].ewm(span=12, adjust=False).mean()
+    exp2 = candles['close'].ewm(span=26, adjust=False).mean()
     macd = exp1 - exp2
     signal = macd.ewm(span=9, adjust=False).mean()
     hist = macd - signal
-    DF['macd'] = macd
-    DF['macdsignal'] = signal
-    DF['macdhist'] = hist
+    candles['macd'] = macd
+    candles['macdsignal'] = signal
+    candles['macdhist'] = hist
     # 결측값 제거
-    DF = DF.dropna()
+    candles = candles.dropna()
     # 입력 데이터와 출력 데이터 분리
-    X = DF[['open', 'high', 'low', 'close', 'volume', 'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'rsi', 'macd', 'macdsignal', 'macdhist']]
-    y = (DF['close'].shift(-1) < DF['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
+    X = candles[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored', 'rsi', 'macd', 'macdsignal', 'macdhist']]
+    y = (candles['close'].shift(-1) < candles['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
     # 학습 데이터와 검증 데이터 분리
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     # 모델 구성
@@ -140,8 +140,6 @@ def is_bull_market(ticker, time):
     proba = model.predict_proba(X_test.iloc[-1].values.reshape(1,-1))[0][1]
     proba = round(proba, 4)
     return proba
-# 로그인
-upbit = pyupbit.Upbit(access, secret)
 stop = False
 isForceStart = False
 def handle(msg):
@@ -189,7 +187,7 @@ def job():
                 sell_price = predict_target_price("high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = 1-is_bull_market(COIN, "minute60")
-                hour_3 = 1-is_bull_market(COIN, "minute180")
+                hour_3 = 1-is_bull_market(COIN, "Client.KLINE_INTERVAL_3HOUR")
                 hour_6 = 1-is_bull_market(COIN, "minute360")
                 hour_24 = 1-is_bull_market(COIN, "day")
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
