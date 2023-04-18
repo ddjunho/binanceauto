@@ -25,16 +25,16 @@ COIN = "BTCUSDT" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
-    # 잔고 조회
+    # 선물 거래 계좌 잔고 조회
     try:
-        # Get account information
-        info = client.get_account()
+        # Get futures account information
+        info = client.futures_account()
         # Get balances
-        balances = info['balances']
+        balances = info['assets']
         # Find balance for given ticker
         for balance in balances:
             if balance['asset'] == ticker:
-                return float(balance['free'])
+                return float(balance['availableBalance'])
         # If ticker not found, return 0
         return 0
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
