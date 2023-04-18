@@ -52,7 +52,7 @@ def predict_target_price(ticker, target_type):
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     print(df.dtypes)
-    df = df.astype({'open': 'int', 'high': 'int', 'low': 'int', 'close': 'int', 'volume': 'int', 'quote_asset_volume': 'int', 'taker_buy_base': 'int', 'taker_buy_quote': 'int', 'ignored': 'int'})
+    df = df.astype({'open': 'float', 'high': 'float', 'low': 'float', 'close': 'float', 'volume': 'float', 'quote_asset_volume': 'float', 'taker_buy_base': 'float', 'taker_buy_quote': 'float', 'ignored': 'float'})
     print(df.dtypes)
     # 입력 데이터 전처리
     X = df
