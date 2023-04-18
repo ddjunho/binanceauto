@@ -22,7 +22,6 @@ buy_unit = 0.2  # 분할 매수 금액 단위 설정
 # 로그인
 client = Client(api_key, api_secret)
 COIN = "BTCUSDT" #코인명
-client.futures_change_leverage(symbol=COIN, leverage=10)
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
@@ -48,12 +47,7 @@ def get_current_price(ticker):
     except Exception as e:
         print(e)
 
-def predict_target_price(target_type):
-    with open(f"{target_type}.json") as f:
-        input_data = json.load(f)
-    ticker = input_data['arguments']['ticker']
-    target_type = input_data['arguments']['target_type']
-    client = Client(api_key, api_secret)
+def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval=Client.KLINE_INTERVAL_3HOUR, limit=1000)
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
@@ -159,8 +153,12 @@ def handle(msg):
         elif msg['text'] == '/isNormalStart':
             bot.sendMessage(chat_id, '일부 매매조건을 무시하지않고 매매합니다....')
             isForceStart = False
+        elif msg['text'] == '/set_Leverage':
+            bot.sendMessage(chat_id, '레버리지 설정\n/Leverage5\n/Leverage10\n/Leverage20\n/Leverage40\n/Leverage60\n/Leverage100')
+            isForceStart = False
+            Leverage
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/Leverage - 레버리지 설정')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
@@ -179,12 +177,13 @@ def job():
         try:
             now = datetime.now()
             current_price = get_current_price(COIN)
+            client.futures_change_leverage(symbol=COIN, leverage=Leverage)
             if now.hour % 3 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
                     buy_amount = usdt_balance * buy_unit
-                target_price = predict_target_price("low")
-                sell_price = predict_target_price("high")
+                target_price = predict_target_price(COIN, "low")
+                sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1HOUR)
                 hour_3 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_3HOUR)
