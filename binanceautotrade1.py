@@ -49,7 +49,7 @@ def get_current_price(ticker):
 
 def predict_target_price(ticker, target_type):
     # 데이터 불러오기
-    candles = client.futures_klines(symbol=ticker, interval=Client.KLINE_INTERVAL_3HOUR, limit=1000)
+    candles = client.futures_klines(symbol=ticker, interval=4h, limit=1000)
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
     X = df.values
@@ -70,7 +70,7 @@ def predict_target_price(ticker, target_type):
     y_train = np.array(y_train)
     # Tensorflow 모델 구성
     model = tf.keras.models.Sequential([
-        tf.keras.layers.LSTM(128, input_shape=(data, 5)),
+        tf.keras.layers.LSTM(128, input_shape=(data, 12)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
@@ -205,15 +205,15 @@ def job():
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1HOUR)
-                hour_3 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_3HOUR)
-                hour_6 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_6HOUR)
-                hour_24 = 1-is_bull_market(COIN, Client.KLINE_INTERVAL_1DAY)
+                hour_1 = 1-is_bull_market(COIN, '1h')
+                hour_4 = 1-is_bull_market(COIN, '4h')
+                hour_8 = 1-is_bull_market(COIN, '8h')
+                hour_24 = 1-is_bull_market(COIN, '1d')
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n3시간뒤 크거나 같을 확률 예측 : {hour_3*100}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
                 send_message(message)
                 start = False
             # 매수 조건
