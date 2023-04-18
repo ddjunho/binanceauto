@@ -205,9 +205,13 @@ def job():
                     usd = get_balance('USDT')
                     buy_amount = usd * buy_unit
                 target_price = predict_target_price(COIN, "low")
+                print(target_price)
                 sell_price = predict_target_price(COIN, "high")
+                print(sell_price)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
+                print(PriceEase)
                 hour_1 = 1-is_bull_market(COIN, '1h')
+                print(hour_1)
                 hour_4 = 1-is_bull_market(COIN, '4h')
                 hour_8 = 1-is_bull_market(COIN, '8h')
                 hour_24 = 1-is_bull_market(COIN, '1d')
