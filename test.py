@@ -50,9 +50,10 @@ def get_current_price(ticker):
 def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
-    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored']).astype(float)
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
-    X = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']]
+    df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']] = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']].apply(pd.to_numeric)
+    X = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']].values
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
     # 출력 데이터 전처리
@@ -82,7 +83,7 @@ def predict_target_price(ticker, target_type):
     # 학습
     model.fit(X_train, y_train, epochs=1, verbose=1)
     # 새로운 데이터에 대한 예측
-    last_data = X.iloc[-data:].values
+    last_data = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']].iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
     last_data = (last_data - last_data_mean) / last_data_std
