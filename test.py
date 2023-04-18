@@ -95,7 +95,7 @@ def predict_target_price(ticker, target_type):
     return float(predicted_price)
 
 def is_bull_market(ticker, time):
-    candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
+    candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     DF = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     # 기술적 지표 추가
@@ -213,8 +213,11 @@ def job():
                 hour_1 = 1-is_bull_market(COIN, '1h')
                 print(hour_1)
                 hour_4 = 1-is_bull_market(COIN, '4h')
+                print(hour_4)
                 hour_8 = 1-is_bull_market(COIN, '8h')
+                print(hour_8)
                 hour_24 = 1-is_bull_market(COIN, '1d')
+                print(hour_24)
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
                     bull_market = True
                 else:
