@@ -46,13 +46,13 @@ def get_current_price(ticker):
         return float(client.futures_symbol_ticker(symbol=ticker)['price'])
     except Exception as e:
         print(e)
-
 def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
-    df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
-    X = df
+    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
+    X = df[['open', 'high', 'low', 'close', 'volume']].values
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
     # 출력 데이터 전처리
@@ -70,7 +70,7 @@ def predict_target_price(ticker, target_type):
     y_train = np.array(y_train)
     # Tensorflow 모델 구성
     model = tf.keras.models.Sequential([
-        tf.keras.layers.LSTM(128, input_shape=(data, 12)),
+        tf.keras.layers.LSTM(128, input_shape=(data, 5)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
@@ -95,35 +95,36 @@ def predict_target_price(ticker, target_type):
 
 def is_bull_market(ticker, time):
     candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
-    candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    DF = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     # 기술적 지표 추가
-    candles['ma5'] = candles['close'].rolling(window=5).mean()
-    candles['ma10'] = candles['close'].rolling(window=10).mean()
-    candles['ma20'] = candles['close'].rolling(window=20).mean()
-    candles['ma60'] = candles['close'].rolling(window=60).mean()
-    candles['ma120'] = candles['close'].rolling(window=120).mean()
+    DF['ma5'] = DF['close'].rolling(window=5).mean()
+    DF['ma10'] = DF['close'].rolling(window=10).mean()
+    DF['ma20'] = DF['close'].rolling(window=20).mean()
+    DF['ma60'] = DF['close'].rolling(window=60).mean()
+    DF['ma120'] = DF['close'].rolling(window=120).mean()
     # RSI 계산
-    delta = candles['close'].diff()
+    delta = DF['close'].diff()
     up = delta.clip(lower=0)
     down = -1 * delta.clip(upper=0)
     ema_up = up.ewm(com=13, adjust=False).mean()
     ema_down = down.ewm(com=13, adjust=False).mean()
     rs = ema_up / ema_down
-    candles['rsi'] = 100 - (100 / (1 + rs))
+    DF['rsi'] = 100 - (100 / (1 + rs))
     # MACD 계산
-    exp1 = candles['close'].ewm(span=12, adjust=False).mean()
-    exp2 = candles['close'].ewm(span=26, adjust=False).mean()
+    exp1 = DF['close'].ewm(span=12, adjust=False).mean()
+    exp2 = DF['close'].ewm(span=26, adjust=False).mean()
     macd = exp1 - exp2
     signal = macd.ewm(span=9, adjust=False).mean()
     hist = macd - signal
-    candles['macd'] = macd
-    candles['macdsignal'] = signal
-    candles['macdhist'] = hist
+    DF['macd'] = macd
+    DF['macdsignal'] = signal
+    DF['macdhist'] = hist
     # 결측값 제거
-    candles = candles.dropna()
+    DF = DF.dropna()
     # 입력 데이터와 출력 데이터 분리
-    X = candles[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored', 'rsi', 'macd', 'macdsignal', 'macdhist']]
-    y = (candles['close'].shift(-1) < candles['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
+    X = DF[['open', 'high', 'low', 'close', 'volume', 'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'rsi', 'macd', 'macdsignal', 'macdhist']]
+    y = (DF['close'].shift(-1) < DF['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
     # 학습 데이터와 검증 데이터 분리
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     # 모델 구성
@@ -213,7 +214,7 @@ def job():
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
                 send_message(message)
                 start = False
             # 매수 조건
