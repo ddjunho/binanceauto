@@ -71,7 +71,7 @@ def predict_target_price(ticker, target_type):
     y_train = np.array(y_train)
     # Tensorflow 모델 구성
     model = tf.keras.models.Sequential([
-        tf.keras.layers.LSTM(128, input_shape=(data, 9)),
+        tf.keras.layers.LSTM(128, input_shape=(data, 8)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
