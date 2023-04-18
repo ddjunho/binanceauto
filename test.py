@@ -53,7 +53,7 @@ def predict_target_price(ticker, target_type):
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
     df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']] = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']].apply(pd.to_numeric)
-    X = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']].values
+    X = df[['open', 'high', 'low', 'close', 'volume']].values
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
     # 출력 데이터 전처리
@@ -71,7 +71,7 @@ def predict_target_price(ticker, target_type):
     y_train = np.array(y_train)
     # Tensorflow 모델 구성
     model = tf.keras.models.Sequential([
-        tf.keras.layers.LSTM(128, input_shape=(data, 8)),
+        tf.keras.layers.LSTM(128, input_shape=(data, 5)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
@@ -83,7 +83,7 @@ def predict_target_price(ticker, target_type):
     # 학습
     model.fit(X_train, y_train, epochs=1, verbose=1)
     # 새로운 데이터에 대한 예측
-    last_data = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'taker_buy_base', 'taker_buy_quote']].iloc[-data:].values
+    last_data = df[['open', 'high', 'low', 'close', 'volume']].iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
     last_data = (last_data - last_data_mean) / last_data_std
