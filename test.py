@@ -49,7 +49,7 @@ def get_current_price(ticker):
 
 def predict_target_price(ticker, target_type):
     # 데이터 불러오기
-    candles = [float(x) for x in client.futures_klines(symbol=ticker, interval='4h', limit=1000)]
+    candles = list(map(float, client.futures_klines(symbol=ticker, interval='4h', limit=1000)))
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     # 입력 데이터 전처리
     X = df[['open', 'high', 'low', 'close', 'volume', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']]
