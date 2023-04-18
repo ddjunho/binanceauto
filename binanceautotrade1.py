@@ -27,14 +27,15 @@ bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 def get_balance(ticker):
     # 잔고 조회
     try:
-        balances = client.futures_account_balance()
-        for b in balances:
-            if b['asset'] == ticker:
-                if b['balance'] is not None:
-                    return float(b['balance'])
-                else:
-                    return 0
-        # 해당 티커의 잔고가 없을 경우 0을 반환
+        # Get account information
+        info = client.get_account()
+        # Get balances
+        balances = info['balances']
+        # Find balance for given ticker
+        for balance in balances:
+            if balance['asset'] == ticker:
+                return float(balance['free'])
+        # If ticker not found, return 0
         return 0
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
