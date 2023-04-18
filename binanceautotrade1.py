@@ -199,7 +199,7 @@ def job():
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 3 == 0 and now.minute == 0 or start == True:
+            if now.hour % 4 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
                     buy_amount = usd * buy_unit
