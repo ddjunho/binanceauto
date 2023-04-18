@@ -179,7 +179,7 @@ def handle(msg):
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/Leverage - 레버리지 설정')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
