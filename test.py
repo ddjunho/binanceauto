@@ -95,36 +95,37 @@ def predict_target_price(ticker, target_type):
     return float(predicted_price)
 
 def is_bull_market(ticker, time):
-    candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
-    candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    DF = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     # 기술적 지표 추가
-    candles['ma5'] = candles['close'].rolling(window=5).mean()
-    candles['ma10'] = candles['close'].rolling(window=10).mean()
-    candles['ma20'] = candles['close'].rolling(window=20).mean()
-    candles['ma60'] = candles['close'].rolling(window=60).mean()
-    candles['ma120'] = candles['close'].rolling(window=120).mean()
+    DF['ma5'] = DF['close'].rolling(window=5).mean()
+    DF['ma10'] = DF['close'].rolling(window=10).mean()
+    DF['ma20'] = DF['close'].rolling(window=20).mean()
+    DF['ma60'] = DF['close'].rolling(window=60).mean()
+    DF['ma120'] = DF['close'].rolling(window=120).mean()
     # RSI 계산
-    delta = candles['close'].diff()
+    delta = DF['close'].diff()
     up = delta.clip(lower=0)
     down = -1 * delta.clip(upper=0)
     ema_up = up.ewm(com=13, adjust=False).mean()
     ema_down = down.ewm(com=13, adjust=False).mean()
     rs = ema_up / ema_down
-    candles['rsi'] = 100 - (100 / (1 + rs))
+    DF['rsi'] = 100 - (100 / (1 + rs))
     # MACD 계산
-    exp1 = candles['close'].ewm(span=12, adjust=False).mean()
-    exp2 = candles['close'].ewm(span=26, adjust=False).mean()
+    exp1 = DF['close'].ewm(span=12, adjust=False).mean()
+    exp2 = DF['close'].ewm(span=26, adjust=False).mean()
     macd = exp1 - exp2
     signal = macd.ewm(span=9, adjust=False).mean()
     hist = macd - signal
-    candles['macd'] = macd
-    candles['macdsignal'] = signal
-    candles['macdhist'] = hist
+    DF['macd'] = macd
+    DF['macdsignal'] = signal
+    DF['macdhist'] = hist
     # 결측값 제거
-    candles = candles.dropna()
+    DF = DF.dropna()
     # 입력 데이터와 출력 데이터 분리
-    X = candles[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored', 'rsi', 'macd', 'macdsignal', 'macdhist']]
-    y = (candles['close'].shift(-1) < candles['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
+    X = DF[['open', 'high', 'low', 'close', 'volume', 'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'rsi', 'macd', 'macdsignal', 'macdhist']]
+    y = (DF['close'].shift(-1) < DF['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
     # 학습 데이터와 검증 데이터 분리
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     # 모델 구성
