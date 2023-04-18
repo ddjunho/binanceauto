@@ -51,10 +51,9 @@ def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    df = df[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']]
     df = df.astype({'open': 'float', 'high': 'float', 'low': 'float', 'close': 'float', 'volume': 'float', 'quote_asset_volume': 'float', 'taker_buy_base': 'float', 'taker_buy_quote': 'float'})
     # 입력 데이터 전처리
-    X = df
+    X = df[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']]
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
     # 출력 데이터 전처리
