@@ -170,7 +170,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = usdt_balance * buy_unit # 분할 매수 금액 계산
+    buy_amount = usd * buy_unit # 분할 매수 금액 계산
     start = True
     bull_market = False
     while stop == False:
@@ -181,7 +181,7 @@ def job():
             if now.hour % 3 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
-                    buy_amount = usdt_balance * buy_unit
+                    buy_amount = usd * buy_unit
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
