@@ -51,7 +51,6 @@ def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
     df = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    df = df.drop('ignored', axis=1)
     df = df.astype({'open': 'float', 'high': 'float', 'low': 'float', 'close': 'float', 'volume': 'float', 'quote_asset_volume': 'float', 'taker_buy_base': 'float', 'taker_buy_quote': 'float'})
     print(df.dtypes)
     # 입력 데이터 전처리
@@ -85,7 +84,7 @@ def predict_target_price(ticker, target_type):
     # 학습
     model.fit(X_train, y_train, epochs=1, verbose=1)
     # 새로운 데이터에 대한 예측
-    last_data = df.iloc[-data:].values
+    last_data = df[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']].iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
     last_data = (last_data - last_data_mean) / last_data_std
@@ -98,7 +97,8 @@ def predict_target_price(ticker, target_type):
 
 def is_bull_market(ticker, time):
     candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
-    candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote'])
+    candles = pd.DataFrame(candles, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+    df = df.astype({'open': 'float', 'high': 'float', 'low': 'float', 'close': 'float', 'volume': 'float', 'quote_asset_volume': 'float', 'taker_buy_base': 'float', 'taker_buy_quote': 'float'})
     # 기술적 지표 추가
     candles['ma5'] = candles['close'].rolling(window=5).mean()
     candles['ma10'] = candles['close'].rolling(window=10).mean()
