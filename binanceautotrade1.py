@@ -137,6 +137,7 @@ def is_bull_market(ticker, time):
     proba = round(proba, 4)
     return proba
 stop = False
+start = True
 isForceStart = False
 Leverage = 1
 def handle(msg):
@@ -150,6 +151,9 @@ def handle(msg):
         elif msg['text'] == '/stop':
             bot.sendMessage(chat_id, 'Stopping...')
             stop = True
+        elif msg['text'] == '/restart':
+            bot.sendMessage(chat_id, 'restarting...')
+            start = True
         elif msg['text'] == '/isForceStart':
             bot.sendMessage(chat_id, '일부 매매조건을 무시하고 매매합니다...')
             isForceStart = True
@@ -180,7 +184,7 @@ def handle(msg):
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정\n/restart - 재시작')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
@@ -193,7 +197,6 @@ def job():
     last_buy_time = None
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
-    start = True
     bull_market = False
     while stop == False:
         try:
