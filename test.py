@@ -84,9 +84,11 @@ def predict_target_price(ticker, target_type):
     # 학습
     model.fit(X_train, y_train, epochs=1, verbose=1)
     # 새로운 데이터에 대한 예측
-    last_data = df[['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote']].iloc[-data:].values
+    last_data = df.iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
+    if last_data_std==0:
+        last_data_std=1
     last_data = (last_data - last_data_mean) / last_data_std
     # 예측할 데이터의 shape를 (1,999, values)로 변경
     last_data = np.expand_dims(last_data, axis=0)
