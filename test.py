@@ -86,6 +86,9 @@ def predict_target_price(ticker, target_type):
     last_data = df.iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
+    last_data = last_data.astype(float)
+    last_data_mean = last_data_mean.astype(float)
+    last_data_std = last_data_std.astype(float)
     last_data = (last_data - last_data_mean) / last_data_std
     # 예측할 데이터의 shape를 (1,999, values)로 변경
     last_data = np.expand_dims(last_data, axis=0)
