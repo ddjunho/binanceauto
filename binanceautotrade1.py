@@ -136,6 +136,7 @@ def is_bull_market(ticker, time):
     return proba
 stop = False
 isForceStart = False
+Leverage = 1
 def handle(msg):
     global stop
     global isForceStart
@@ -154,9 +155,28 @@ def handle(msg):
             bot.sendMessage(chat_id, '일부 매매조건을 무시하지않고 매매합니다....')
             isForceStart = False
         elif msg['text'] == '/set_Leverage':
-            bot.sendMessage(chat_id, '레버리지 설정\n/Leverage5\n/Leverage10\n/Leverage20\n/Leverage40\n/Leverage60\n/Leverage100')
-            isForceStart = False
-            Leverage
+            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage = 1\n/Leverage = 5\n/Leverage = 10\n/Leverage = 20\n/Leverage = 40\n/Leverage = 60\n/Leverage = 100')
+        elif msg['text'] == '/Leverage = 1':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 1
+        elif msg['text'] == '/Leverage = 5':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 5
+        elif msg['text'] == '/Leverage = 10':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 10
+        elif msg['text'] == '/Leverage = 20':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 20
+        elif msg['text'] == '/Leverage = 40':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 40
+        elif msg['text'] == '/Leverage = 60':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 60
+        elif msg['text'] == '/Leverage = 100':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 100
         elif msg['text'] == '/help':
             bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/Leverage - 레버리지 설정')
 MessageLoop(bot, handle).run_as_thread()
