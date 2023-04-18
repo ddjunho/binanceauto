@@ -156,26 +156,26 @@ def handle(msg):
             bot.sendMessage(chat_id, '일부 매매조건을 무시하지않고 매매합니다....')
             isForceStart = False
         elif msg['text'] == '/set_Leverage':
-            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage = 1\n/Leverage = 5\n/Leverage = 10\n/Leverage = 20\n/Leverage = 40\n/Leverage = 60\n/Leverage = 100')
-        elif msg['text'] == '/Leverage = 1':
+            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60\n/Leverage_100')
+        elif msg['text'] == '/Leverage_1':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 1
-        elif msg['text'] == '/Leverage = 5':
+        elif msg['text'] == '/Leverage_5':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 5
-        elif msg['text'] == '/Leverage = 10':
+        elif msg['text'] == '/Leverage_10':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 10
-        elif msg['text'] == '/Leverage = 20':
+        elif msg['text'] == '/Leverage_20':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 20
-        elif msg['text'] == '/Leverage = 40':
+        elif msg['text'] == '/Leverage_40':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 40
-        elif msg['text'] == '/Leverage = 60':
+        elif msg['text'] == '/Leverage_60':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 60
-        elif msg['text'] == '/Leverage = 100':
+        elif msg['text'] == '/Leverage_100':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
