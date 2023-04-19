@@ -197,7 +197,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = round(usd * buy_unit * 0.9995, 2) # 분할 매수 금액 계산
+    buy_amount = round(usd * buy_unit, 2) # 분할 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
