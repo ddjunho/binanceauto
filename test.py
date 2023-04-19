@@ -231,8 +231,6 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
-                        price = client.get_symbol_ticker(symbol=COIN)['price']
-                        btc_amount = buy_amount / float(price)
                         # Get symbol info
                         symbol_info = client.get_symbol_info(COIN)
                         # Find the step size
@@ -244,8 +242,8 @@ def job():
                         # Calculate the precision
                         precision = int(round(-math.log(step_size, 10), 0))
                         # Round the quantity to the correct precision
-                        btc_amount = round(btc_amount, precision)
-                        client.order_market_buy(symbol=COIN, quantity=btc_amount)
+                        buy_amount = round(buy_amount, precision)
+                        client.order_market_buy(symbol=COIN, quantity=buy_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
                         print(f"매수 실패: {e}")
