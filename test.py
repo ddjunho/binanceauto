@@ -229,7 +229,7 @@ def job():
                     if target_price + PriceEase < sell_price-(PriceEase*3):
                         if get_balance('USDT') < usd * buy_unit:
                             buy_amount = usd
-                        client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
+                        client.futures_create_order(symbol='BTCUSDS', side='BUY', type='MARKET', quantity=buy_amount)
                         last_buy_time = now
                         multiplier = 1
                         print(now, "매수")
@@ -238,7 +238,7 @@ def job():
                 if btc > 0.00008:
                     btc = get_balance('BTC')
                     if btc is not None:
-                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
+                        client.futures_create_order(symbol='BTCUSDS', side='SELL', type='MARKET', quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
             if last_buy_time is not None:
