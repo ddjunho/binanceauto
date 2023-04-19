@@ -208,6 +208,10 @@ def job():
             if now.hour % 4 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
+                    # Get the stepSize from the exchange info
+                    info = client.futures_exchange_info()
+                    symbol_info = [f for f in info['symbols'] if f['symbol'] == COIN][0]
+                    stepSize = float([f for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]['stepSize'])
                     buy_amount = usd * buy_unit
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
@@ -234,7 +238,7 @@ def job():
                             info = client.futures_exchange_info()
                             symbols = [s['symbol'] for s in info['symbols']]
                             print(symbols)
-                            client.order_market_buy(symbol=COIN, quantity=buy_amount)
+                            client.order_market_sell(symbol=COIN, quantity=buy_amount)
                             print(now, "매수")
                         except BinanceAPIException as e:
                             print(f"매수 실패: {e}")
@@ -246,7 +250,7 @@ def job():
                 if btc > 0.00008:
                     btc = get_balance('BTC')
                     if btc is not None:
-                        client.order_market_sell(symbol=COIN, quantity=btc)
+                        client.order_market_buy(symbol=COIN, quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
             if last_buy_time is not None:
