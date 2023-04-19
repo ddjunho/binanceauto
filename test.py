@@ -234,7 +234,7 @@ def job():
                             info = client.futures_exchange_info()
                             symbols = [s['symbol'] for s in info['symbols']]
                             print(symbols)
-                            client.futures_create_order(symbol=coin, side=COIN, type='MARKET', quantity=buy_amount)
+                            client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
                             print(now, "매수")
                         except BinanceAPIException as e:
                             print(f"매수 실패: {e}")
