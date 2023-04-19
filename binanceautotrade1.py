@@ -215,7 +215,7 @@ def job():
                 hour_4 = 1-is_bull_market(COIN, '4h')
                 hour_8 = 1-is_bull_market(COIN, '8h')
                 hour_24 = 1-is_bull_market(COIN, '1d')
-                if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
+                if hour_1 >= 0.45 and hour_4 >= 0.45 and hour_8 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
