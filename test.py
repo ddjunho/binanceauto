@@ -196,7 +196,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = usd * buy_unit # 분할 매수 금액 계산
+    buy_amount = usd * buy_unit * 0.9996 # 분할 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
@@ -229,7 +229,11 @@ def job():
                     if target_price + PriceEase < sell_price-(PriceEase*3):
                         if get_balance('USDT') < usd * buy_unit:
                             buy_amount = usd
-                        client.futures_create_order(symbol='BTCUSDS', side='BUY', type='MARKET', quantity=buy_amount)
+                        try:
+                            client.futures_create_order(symbol='BTCUSDS', side='BUY', type='MARKET', quantity=buy_amount)
+                            print(now, "매수")
+                        except BinanceAPIException as e:
+                            print(f"매수 실패: {e}")
                         last_buy_time = now
                         multiplier = 1
                         print(now, "매수")
