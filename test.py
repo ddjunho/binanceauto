@@ -135,7 +135,7 @@ def is_bull_market(ticker, time):
     model.fit(X_train, y_train)
     # 예측 확률 계산
     proba = model.predict_proba(X_test.iloc[-1].values.reshape(1,-1))[0][1]
-    proba = round(proba, 4)
+    proba = round(proba, 2)
     return proba
 stop = False
 start = True
@@ -197,7 +197,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = round(usd * buy_unit * 0.9996, 4) # 분할 매수 금액 계산
+    buy_amount = round(usd * buy_unit * 0.9996, 2) # 분할 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
