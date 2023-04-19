@@ -137,11 +137,12 @@ def is_bull_market(ticker, time):
     proba = round(proba, 4)
     return proba
 stop = False
-start = True
 isForceStart = False
 Leverage = 1
+start = True
 def handle(msg):
     global stop
+    global start
     global isForceStart
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
@@ -198,13 +199,12 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
-    start = True
     while stop == False:
         try:
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 4 == 0 and now.minute == 0 or start == True:
+            if now.hour % 2 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
                     buy_amount = usd * buy_unit
