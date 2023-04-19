@@ -9,6 +9,7 @@ import tensorflow as tf
 import requests.exceptions
 import simplejson.errors
 from binance.client import Client
+from binance.exceptions import BinanceAPIException
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
