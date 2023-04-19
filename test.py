@@ -234,7 +234,7 @@ def job():
                             info = client.futures_exchange_info()
                             symbols = [s['symbol'] for s in info['symbols']]
                             print(symbols)
-                            client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
+                            client.order_market_buy(symbol=COIN, quantity=buy_amount)
                             print(now, "매수")
                         except BinanceAPIException as e:
                             print(f"매수 실패: {e}")
@@ -246,7 +246,7 @@ def job():
                 if btc > 0.00008:
                     btc = get_balance('BTC')
                     if btc is not None:
-                        client.futures_create_order(symbol='BTCUSDS', side='SELL', type='MARKET', quantity=btc)
+                        client.order_market_sell(symbol=COIN, quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
             if last_buy_time is not None:
