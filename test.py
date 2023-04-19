@@ -231,6 +231,9 @@ def job():
                         if get_balance('USDT') < usd * buy_unit:
                             buy_amount = usd
                         try:
+                            info = client.futures_exchange_info()
+                            symbols = [s['symbol'] for s in info['symbols']]
+                            print(symbols)
                             client.futures_create_order(symbol='BTCUSDS', side='BUY', type='MARKET', quantity=buy_amount)
                             print(now, "매수")
                         except BinanceAPIException as e:
