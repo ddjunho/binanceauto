@@ -245,10 +245,10 @@ def job():
                         step_size = float(lot_size_filter['stepSize'])
                         # Calculate the precision
                         precision = int(round(-math.log(step_size, 10), 0))
-                        # Round the quantity to the correct precision
-                        buy_amount = round(buy_amount, precision)
                         # Make sure the quantity is within the minQty and maxQty limits
                         buy_amount = max(min(buy_amount, max_qty), min_qty)
+                        # Round the quantity to the correct precision
+                        buy_amount = round(buy_amount, precision)
                         client.order_market_buy(symbol=COIN, quantity=buy_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
