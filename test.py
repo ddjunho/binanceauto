@@ -197,7 +197,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = str(float(round(usd * buy_unit * 0.9996, 2))) # 분할 매수 금액 계산
+    buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
@@ -230,7 +230,10 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
-                        client.order_market_buy(symbol=COIN, quantity=buy_amount)
+                        price = client.get_symbol_ticker(symbol='BTCUSDT')['price']
+                        usdt_amount = buy_amount
+                        btc_amount = usdt_amount / float(price),
+                        client.order_market_buy(symbol=COIN, quantity=btc_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
                         print(f"매수 실패: {e}")
