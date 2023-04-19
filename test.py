@@ -230,9 +230,8 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
-                        price = client.get_symbol_ticker(symbol='BTCUSDT')['price']
-                        usdt_amount = buy_amount
-                        btc_amount = usdt_amount / float(price),
+                        price = client.get_symbol_ticker(symbol=COIN)['price']
+                        btc_amount = round(buy_amount / float(price),6)
                         client.order_market_buy(symbol=COIN, quantity=btc_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
