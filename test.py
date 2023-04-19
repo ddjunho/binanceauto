@@ -20,13 +20,9 @@ from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
 buy_unit = 1 # 분할 매수 금액 단위 설정
+
 # 로그인
 client = Client(api_key, api_secret)
-exchange = ccxt.binance({
-    'apiKey': api_key,
-    'secret': api_secret
-})
-
 COIN = 'BTCUSDT' #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
@@ -253,9 +249,7 @@ def job():
                         buy_amount = max(min(buy_amount, max_qty), min_qty)
                         # Round the quantity to the correct precision
                         buy_amount = round(buy_amount, precision)
-                        symbol = 'COIN/USDT'  # Change COIN to the desired coin symbol
-                        amount = buy_amount
-                        order = exchange.create_order(symbol, 'market', 'buy', amount)
+                        client.order_market_buy(symbol=COIN, quantity=buy_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
                         print(f"매수 실패: {e}")
