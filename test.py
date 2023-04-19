@@ -19,7 +19,7 @@ from tensorflow.keras import regularizers
 from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
-buy_unit = 1 # 분할 매수 금액 단위 설정
+buy_unit = 0.2 # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
@@ -145,6 +145,7 @@ Leverage = 1
 def handle(msg):
     global stop
     global isForceStart
+    global Leverage
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
@@ -231,25 +232,11 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
-                        # Get symbol info
-                        symbol_info = client.get_symbol_info(COIN)
-                        # Find the LOT_SIZE filter
-                        lot_size_filter = None
-                        for f in symbol_info['filters']:
-                            if f['filterType'] == 'LOT_SIZE':
-                                lot_size_filter = f
-                                break
-                        # Get the minQty, maxQty, and stepSize values
-                        min_qty = float(lot_size_filter['minQty'])
-                        max_qty = float(lot_size_filter['maxQty'])
-                        step_size = float(lot_size_filter['stepSize'])
-                        # Calculate the precision
-                        precision = int(round(-math.log(step_size, 10), 0))
-                        # Make sure the quantity is within the minQty and maxQty limits
-                        buy_amount = max(min(buy_amount, max_qty), min_qty)
-                        # Round the quantity to the correct precision
-                        buy_amount = round(buy_amount, precision)
-                        client.order_market_buy(symbol=COIN, quantity=buy_amount)
+                        client.futures_ticker(symbol=COIN)
+                        price = float(ticker['lastPrice'])
+                        # Calculate the amount of BTC
+                        btc_amount = buy_amount / price
+                        client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
                         print(f"매수 실패: {e}")
@@ -258,7 +245,7 @@ def job():
                 if btc > 0.00008:
                     btc = get_balance('BTC')
                     if btc is not None:
-                        client.order_market_sell(symbol=COIN, quantity=btc)
+                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
             if last_buy_time is not None:
