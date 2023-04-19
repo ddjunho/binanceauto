@@ -25,16 +25,17 @@ COIN = "BTCUSDT" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
-    # 잔고 조회
+    # 선물 거래 계좌 잔고 조회
     try:
-        balances = client.futures_account_balance()
-        for b in balances:
-            if b['asset'] == ticker:
-                if b['balance'] is not None:
-                    return float(b['balance'])
-                else:
-                    return 0
-        # 해당 티커의 잔고가 없을 경우 0을 반환
+        # Get futures account information
+        info = client.futures_account()
+        # Get balances
+        balances = info['assets']
+        # Find balance for given ticker
+        for balance in balances:
+            if balance['asset'] == ticker:
+                return float(balance['availableBalance'])
+        # If ticker not found, return 0
         return 0
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
@@ -46,7 +47,6 @@ def get_current_price(ticker):
         return float(client.futures_symbol_ticker(symbol=ticker)['price'])
     except Exception as e:
         print(e)
-
 def predict_target_price(ticker, target_type):
     # 데이터 불러오기
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
@@ -137,6 +137,7 @@ def is_bull_market(ticker, time):
     proba = round(proba, 4)
     return proba
 stop = False
+start = True
 isForceStart = False
 Leverage = 1
 def handle(msg):
@@ -150,6 +151,9 @@ def handle(msg):
         elif msg['text'] == '/stop':
             bot.sendMessage(chat_id, 'Stopping...')
             stop = True
+        elif msg['text'] == '/restart':
+            bot.sendMessage(chat_id, 'restarting...')
+            start = True
         elif msg['text'] == '/isForceStart':
             bot.sendMessage(chat_id, '일부 매매조건을 무시하고 매매합니다...')
             isForceStart = True
@@ -157,30 +161,30 @@ def handle(msg):
             bot.sendMessage(chat_id, '일부 매매조건을 무시하지않고 매매합니다....')
             isForceStart = False
         elif msg['text'] == '/set_Leverage':
-            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage = 1\n/Leverage = 5\n/Leverage = 10\n/Leverage = 20\n/Leverage = 40\n/Leverage = 60\n/Leverage = 100')
-        elif msg['text'] == '/Leverage = 1':
+            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60\n/Leverage_100')
+        elif msg['text'] == '/Leverage_1':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 1
-        elif msg['text'] == '/Leverage = 5':
+        elif msg['text'] == '/Leverage_5':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 5
-        elif msg['text'] == '/Leverage = 10':
+        elif msg['text'] == '/Leverage_10':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 10
-        elif msg['text'] == '/Leverage = 20':
+        elif msg['text'] == '/Leverage_20':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 20
-        elif msg['text'] == '/Leverage = 40':
+        elif msg['text'] == '/Leverage_40':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 40
-        elif msg['text'] == '/Leverage = 60':
+        elif msg['text'] == '/Leverage_60':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 60
-        elif msg['text'] == '/Leverage = 100':
+        elif msg['text'] == '/Leverage_100':
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/Leverage - 레버리지 설정')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정\n/restart - 재시작')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
@@ -193,43 +197,36 @@ def job():
     last_buy_time = None
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
-    start = True
     bull_market = False
+    start = True
     while stop == False:
         try:
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 3 == 0 and now.minute == 0 or start == True:
+            if now.hour % 4 == 0 and now.minute == 0 or start == True:
                 if usd <= get_balance('USDT'):
                     usd = get_balance('USDT')
                     buy_amount = usd * buy_unit
                 target_price = predict_target_price(COIN, "low")
-                print(target_price)
                 sell_price = predict_target_price(COIN, "high")
-                print(sell_price)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                print(PriceEase)
                 hour_1 = 1-is_bull_market(COIN, '1h')
-                print(hour_1)
                 hour_4 = 1-is_bull_market(COIN, '4h')
-                print(hour_4)
                 hour_8 = 1-is_bull_market(COIN, '8h')
-                print(hour_8)
                 hour_24 = 1-is_bull_market(COIN, '1d')
-                print(hour_24)
                 if hour_1 >= 0.45 and hour_3 >= 0.45 and hour_6 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n원화잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
                 send_message(message)
                 start = False
             # 매수 조건
-            if current_price <= target_price + PriceEase:
+            if usd > 10:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if usd > 10 and target_price + PriceEase < sell_price-(PriceEase*3):
+                    if target_price + PriceEase < sell_price-(PriceEase*3):
                         if get_balance('USDT') < usd * buy_unit:
                             buy_amount = usd
                         client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
@@ -238,9 +235,9 @@ def job():
                         print(now, "매수")
             # 매도 조건
             else:
-                if current_price >= sell_price-(PriceEase*multiplier):
+                if btc > 0.00008:
                     btc = get_balance('BTC')
-                    if btc > 0.00008 and btc is not None:
+                    if btc is not None:
                         client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
                         print(now, "매도")
             # PriceEase 증가 조건
