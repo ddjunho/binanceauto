@@ -19,7 +19,7 @@ from tensorflow.keras import regularizers
 from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
-buy_unit = 0.2  # 분할 매수 금액 단위 설정
+buy_unit = 1 # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
