@@ -231,7 +231,7 @@ def job():
                         buy_amount = usd
                     try:
                         price = client.get_symbol_ticker(symbol=COIN)['price']
-                        btc_amount = round(buy_amount / float(price),6)
+                        btc_amount = round(buy_amount / float(price),8)
                         client.order_market_buy(symbol=COIN, quantity=btc_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
