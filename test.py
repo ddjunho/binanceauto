@@ -232,6 +232,18 @@ def job():
                     try:
                         price = client.get_symbol_ticker(symbol=COIN)['price']
                         btc_amount = buy_amount / float(price)
+                        # Get symbol info
+                        symbol_info = client.get_symbol_info(COIN)
+                        # Find the step size
+                        step_size = None
+                        for f in symbol_info['filters']:
+                            if f['filterType'] == 'LOT_SIZE':
+                                step_size = float(f['stepSize'])
+                                break
+                        # Calculate the precision
+                        precision = int(round(-math.log(step_size, 10), 0))
+                        # Round the quantity to the correct precision
+                        btc_amount = round(btc_amount, precision)
                         client.order_market_buy(symbol=COIN, quantity=btc_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
