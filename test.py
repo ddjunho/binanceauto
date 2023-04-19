@@ -227,17 +227,13 @@ def job():
             if usd > 10:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if target_price + PriceEase < sell_price-(PriceEase*3):
-                        if get_balance('USDT') < usd * buy_unit:
-                            buy_amount = usd
-                        try:
-                            client.order_market_buy(symbol=COIN, quantity=buy_amount)
-                            print(now, "매수")
-                        except BinanceAPIException as e:
-                            print(f"매수 실패: {e}")
-                        last_buy_time = now
-                        multiplier = 1
+                    if get_balance('USDT') < usd * buy_unit:
+                        buy_amount = usd
+                    try:
+                        client.order_market_buy(symbol=COIN, quantity=buy_amount)
                         print(now, "매수")
+                    except BinanceAPIException as e:
+                        print(f"매수 실패: {e}")
             # 매도 조건
             else:
                 if btc > 0.00008:
