@@ -22,7 +22,7 @@ buy_unit = 0.2  # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
-COIN = "BTCUSDT" #코인명
+COIN = 'BTCUSDT' #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
@@ -234,7 +234,7 @@ def job():
                             info = client.futures_exchange_info()
                             symbols = [s['symbol'] for s in info['symbols']]
                             print(symbols)
-                            client.futures_create_order(symbol='BTCUSDS', side='BUY', type='MARKET', quantity=buy_amount)
+                            client.futures_create_order(symbol=coin, side=COIN, type='MARKET', quantity=buy_amount)
                             print(now, "매수")
                         except BinanceAPIException as e:
                             print(f"매수 실패: {e}")
