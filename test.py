@@ -23,7 +23,7 @@ buy_unit = 1 # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
-COIN = 'BTCUSDT' #코인명
+COIN = 'BTCUSDT-M' #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
