@@ -1,3 +1,4 @@
+import math
 import time
 import datetime
 import json
@@ -144,6 +145,7 @@ def handle(msg):
     global stop
     global start
     global isForceStart
+    global Leverage
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
@@ -190,6 +192,32 @@ MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
+def buy_coin(COIN, buy_amount):
+    # Get the ticker information for COIN
+    ticker = client.futures_ticker(symbol=COIN)
+    price = float(ticker['lastPrice'])
+    # Calculate the amount of BTC
+    btc_amount = buy_amount / price
+    # Get the symbol information for COIN
+    symbol_info = client.get_symbol_info(COIN)
+    # Find the LOT_SIZE filter
+    lot_size_filter = None
+    for f in symbol_info['filters']:
+        if f['filterType'] == 'LOT_SIZE':
+            lot_size_filter = f
+            break
+    # Get the minQty, maxQty, and stepSize values
+    min_qty = float(lot_size_filter['minQty'])
+    max_qty = float(lot_size_filter['maxQty'])
+    step_size = float(lot_size_filter['stepSize'])
+    # Calculate the precision
+    precision = int(round(-math.log(step_size, 10), 0))
+    # Round the quantity to the correct precision
+    buy_amount = round(buy_amount, precision)
+    # Make sure the quantity is within the minQty and maxQty limits
+    buy_amount = max(min(buy_amount, max_qty), min_qty)
+    # Create a buy order for COIN
+    client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
 # 스케줄러 실행
 def job():
     usd = get_balance('USDT')
@@ -199,15 +227,15 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
+    start = True
     while stop == False:
         try:
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 2 == 0 and now.minute == 0 or start == True:
-                if usd <= get_balance('USDT'):
-                    usd = get_balance('USDT')
-                    buy_amount = usd * buy_unit
+            if now.hour % 4 == 0 and now.minute == 0 or start == True:
+                usd = get_balance('USDT')
+                buy_amount = usd * buy_unit
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
@@ -223,16 +251,23 @@ def job():
                 send_message(message)
                 start = False
             # 매수 조건
-            if current_price <= target_price + PriceEase:
+            if current_price <= target_price:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if usd > 10 and target_price + PriceEase < sell_price-(PriceEase*3):
-                        if get_balance('USDT') < usd * buy_unit:
+                    if usd > 10 and target_price < sell_price-(PriceEase*5):
+                        if usd < buy_amount:
                             buy_amount = usd
-                        client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=buy_amount)
+                        try:
+                            buy_coin(COIN, buy_amount)
+                            pass
+                        except BinanceAPIException as e:
+                            message = f"매수 실패: {e}"
+                            send_message(message)
+                        else:
+                            message = f"매수 성공 !"
+                            send_message(message)
                         last_buy_time = now
                         multiplier = 1
-                        print(now, "매수")
             # 매도 조건
             else:
                 if current_price >= sell_price-(PriceEase*multiplier):
