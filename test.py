@@ -198,25 +198,7 @@ def buy_coin(buy_amount):
     price = float(ticker['lastPrice'])
     # Calculate the amount of BTC
     btc_amount = buy_amount / price
-    # Get the symbol information for COIN
-    symbol_info = client.get_symbol_info(COIN)
-    # Find the LOT_SIZE filter
-    lot_size_filter = None
-    for f in symbol_info['filters']:
-        if f['filterType'] == 'LOT_SIZE':
-            lot_size_filter = f
-            break
-    # Get the minQty, maxQty, and stepSize values
-    min_qty = float(lot_size_filter['minQty'])
-    max_qty = float(lot_size_filter['maxQty'])
-    step_size = float(lot_size_filter['stepSize'])
-    # Calculate the precision
-    precision = int(round(-math.log(step_size, 10), 0))
-    # Round the quantity to the correct precision
-    buy_amount = round(buy_amount, precision)
-    # Make sure the quantity is within the minQty and maxQty limits
-    buy_amount = max(min(buy_amount, max_qty), min_qty)
-    # Create a buy order for COIN
+    btc_amount = round(btc_amount,4)
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
 # 스케줄러 실행
 def job():
@@ -257,11 +239,17 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
-                        buy_amount = 0.001
+                        buy_amount = 30
+                       
                         buy_coin(buy_amount)
-                        print(now, "매수")
+                        pass
                     except BinanceAPIException as e:
-                        print(f"매수 실패: {e}")
+                        message = f"매수 실패: {e}"
+                        send_message(message)
+                    else:
+                        message = f"매수 성공 !"
+                        send_message(message)
+                        break
             # 매도 조건
             else:
                 if btc > 0.00008:
