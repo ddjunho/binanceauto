@@ -258,7 +258,7 @@ def job():
                         buy_amount = usd
                     try:
                         buy_amount = 0.001
-                        buy_coin(COIN, buy_amount)
+                        buy_coin(buy_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
                         print(f"매수 실패: {e}")
