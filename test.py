@@ -192,7 +192,7 @@ MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
-def buy_coin(COIN, buy_amount):
+def buy_coin(coin, buy_amount):
     # Get the ticker information for COIN
     ticker = client.futures_ticker(symbol=COIN)
     price = float(ticker['lastPrice'])
