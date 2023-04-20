@@ -257,6 +257,7 @@ def job():
                     if get_balance('USDT') < usd * buy_unit:
                         buy_amount = usd
                     try:
+                        buy_amount = 0.001
                         buy_coin(COIN, buy_amount)
                         print(now, "매수")
                     except BinanceAPIException as e:
