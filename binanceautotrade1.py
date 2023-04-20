@@ -213,9 +213,9 @@ def buy_coin(buy_amount):
     # Calculate the precision
     precision = int(round(-math.log(step_size, 10), 0))
     # Round the quantity to the correct precision
-    buy_amount = round(buy_amount, precision)
+    btc_amount = round(btc_amount, precision)
     # Make sure the quantity is within the minQty and maxQty limits
-    buy_amount = max(min(buy_amount, max_qty), min_qty)
+    btc_amount = max(min(btc_amount, max_qty), min_qty)
     # Create a buy order for COIN
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
 # 스케줄러 실행
