@@ -261,10 +261,10 @@ def job():
                 time_since_last_buy = now - last_buy_time
                 if time_since_last_buy.total_seconds() >= 3600: # 1시간마다
                     multiplier += 1
+                    last_buy_time = now
                     if multiplier>5:
                         multiplier=5
                         last_buy_time = None
-                    last_buy_time = now
             time.sleep(1)
         except Exception as e:
             print(e)
