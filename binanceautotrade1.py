@@ -140,7 +140,6 @@ def is_bull_market(ticker, time):
 stop = False
 isForceStart = False
 Leverage = 1
-start = True
 def handle(msg):
     global stop
     global start
@@ -209,6 +208,7 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
+    start = True
     while stop == False:
         try:
             now = datetime.now()
@@ -232,10 +232,10 @@ def job():
                 send_message(message)
                 start = False
             # 매수 조건
-            if current_price <= target_price:
+            if current_price <= target_price + PriceEase:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if usd > 10 and target_price < sell_price-(PriceEase*5):
+                    if usd > 10 and target_price + PriceEase < sell_price-(PriceEase*5):
                         if usd < buy_amount:
                             buy_amount = usd
                         try:
