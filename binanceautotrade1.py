@@ -209,7 +209,6 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
-    start = True
     while stop == False:
         try:
             now = datetime.now()
