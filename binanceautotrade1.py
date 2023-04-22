@@ -19,7 +19,6 @@ from tensorflow.keras import regularizers
 from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
-buy_unit = 0.2  # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
@@ -189,6 +188,7 @@ def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
 def buy_coin(buy_amount):
+    global btc_amount
     # Get the ticker information for COIN
     ticker = client.futures_ticker(symbol=COIN)
     price = float(ticker['lastPrice'])
@@ -204,7 +204,7 @@ def job():
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = usd * buy_unit # 분할 매수 금액 계산
+    buy_amount = usd # 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
@@ -214,7 +214,7 @@ def job():
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
             if now.hour % 4 == 0 and now.minute == 0 or start == True:
                 usd = get_balance('USDT')
-                buy_amount = usd * buy_unit
+                buy_amount = usd
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
@@ -234,8 +234,6 @@ def job():
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
                     if usd > 35 and target_price + PriceEase < sell_price-(PriceEase*5):
-                        if usd < buy_amount:
-                            buy_amount = usd
                         try:
                             buy_coin(buy_amount)
                             pass
@@ -253,8 +251,10 @@ def job():
                 if current_price >= sell_price-(PriceEase*multiplier):
                     btc = get_balance('BTC')
                     if btc > 0.00008 and btc is not None:
-                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
-                        print(now, "매도")
+                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc_amount)
+                        message = f"매도 완료 !"
+                        send_message(message)
+                        isForceStart = False
             # PriceEase 증가 조건
             if last_buy_time is not None:
                 time_since_last_buy = now - last_buy_time
