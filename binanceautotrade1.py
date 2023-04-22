@@ -143,7 +143,6 @@ isForceStart = False
 Leverage = 1
 def handle(msg):
     global stop
-    global start
     global isForceStart
     global Leverage
     content_type, chat_type, chat_id = telepot.glance(msg)
@@ -154,9 +153,6 @@ def handle(msg):
         elif msg['text'] == '/stop':
             bot.sendMessage(chat_id, 'Stopping...')
             stop = True
-        elif msg['text'] == '/restart':
-            bot.sendMessage(chat_id, 'restarting...')
-            start = True
         elif msg['text'] == '/isForceStart':
             bot.sendMessage(chat_id, '일부 매매조건을 무시하고 매매합니다...')
             isForceStart = True
@@ -200,7 +196,9 @@ def buy_coin(buy_amount):
     btc_amount = buy_amount / price
     btc_amount = round(btc_amount,4)
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
+    print(btc_amount)
 # 스케줄러 실행
+start = True
 def job():
     usd = get_balance('USDT')
     btc = get_balance('BTC')
@@ -209,7 +207,6 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
-    start = True
     while stop == False:
         try:
             now = datetime.now()
@@ -248,8 +245,8 @@ def job():
                         else:
                             message = f"매수 성공 !"
                             send_message(message)
-                        last_buy_time = now
-                        multiplier = 1
+                            last_buy_time = now
+                            multiplier = 1
             # 매도 조건
             else:
                 if current_price >= sell_price-(PriceEase*multiplier):
