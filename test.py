@@ -19,11 +19,10 @@ from tensorflow.keras import regularizers
 from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
 tf.config.run_functions_eagerly(True)
-buy_unit = 0.2 # 분할 매수 금액 단위 설정
 
 # 로그인
 client = Client(api_key, api_secret)
-COIN = 'BTCUSDT' #코인명
+COIN = "BTCUSDT" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 
 def get_balance(ticker):
@@ -42,7 +41,22 @@ def get_balance(ticker):
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
     return 0
-
+def get_position(ticker):
+    # 선물 거래 계좌 포지션 조회
+    try:
+        # Get futures account information
+        info = client.futures_account()
+        # Get positions
+        positions = info['positions']
+        # Find position for given ticker
+        for position in positions:
+            if position['symbol'] == ticker:
+                return float(position['positionAmt'])
+        # If ticker not found, return 0
+        return 0
+    except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
+        print(f"에러 발생: {e}")
+    return 0
 def get_current_price(ticker):
     # 현재가 조회
     try:
@@ -136,10 +150,9 @@ def is_bull_market(ticker, time):
     model.fit(X_train, y_train)
     # 예측 확률 계산
     proba = model.predict_proba(X_test.iloc[-1].values.reshape(1,-1))[0][1]
-    proba = round(proba, 2)
+    proba = round(proba, 4)
     return proba
 stop = False
-start = True
 isForceStart = False
 Leverage = 1
 def handle(msg):
@@ -154,9 +167,6 @@ def handle(msg):
         elif msg['text'] == '/stop':
             bot.sendMessage(chat_id, 'Stopping...')
             stop = True
-        elif msg['text'] == '/restart':
-            bot.sendMessage(chat_id, 'restarting...')
-            start = True
         elif msg['text'] == '/isForceStart':
             bot.sendMessage(chat_id, '일부 매매조건을 무시하고 매매합니다...')
             isForceStart = True
@@ -187,27 +197,29 @@ def handle(msg):
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정\n/restart - 재시작')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
 def buy_coin(buy_amount):
+    global btc_amount
     # Get the ticker information for COIN
     ticker = client.futures_ticker(symbol=COIN)
     price = float(ticker['lastPrice'])
     # Calculate the amount of BTC
     btc_amount = buy_amount / price
-    btc_amount = round(btc_amount,4)
+    btc_amount = round(btc_amount,3)
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
+    print(btc_amount)
 # 스케줄러 실행
 def job():
     usd = get_balance('USDT')
-    btc = get_balance('BTC')
+    btc = get_position('BTC')
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
-    buy_amount = usd * buy_unit # 분할 매수 금액 계산
+    buy_amount = usd # 매수 금액 계산
     bull_market = False
     start = True
     while stop == False:
@@ -217,7 +229,7 @@ def job():
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
             if now.hour % 4 == 0 and now.minute == 0 or start == True:
                 usd = get_balance('USDT')
-                buy_amount = usd * buy_unit
+                buy_amount = usd
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
@@ -225,7 +237,7 @@ def job():
                 hour_4 = 1-is_bull_market(COIN, '4h')
                 hour_8 = 1-is_bull_market(COIN, '8h')
                 hour_24 = 1-is_bull_market(COIN, '1d')
-                if hour_1 >= 0.45 and hour_4 >= 0.45 and hour_8 >= 0.45:
+                if hour_24 >= 0.5 and hour_4 >= 0.45 and hour_8 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
@@ -233,39 +245,40 @@ def job():
                 send_message(message)
                 start = False
             # 매수 조건
-            if usd > 10:
+            if current_price <= target_price + PriceEase:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if get_balance('USDT') < usd * buy_unit:
-                        buy_amount = usd
-                    try:
-                        buy_amount = 30
-                       
-                        buy_coin(buy_amount)
-                        pass
-                    except BinanceAPIException as e:
-                        message = f"매수 실패: {e}"
-                        send_message(message)
-                    else:
-                        message = f"매수 성공 !"
-                        send_message(message)
-                        break
+                    if usd > 35 and target_price + PriceEase < sell_price-(PriceEase*5):
+                        try:
+                            buy_coin(buy_amount)
+                            pass
+                        except BinanceAPIException as e:
+                            message = f"매수 실패 {e}!"
+                            print(e)
+                            send_message(message)
+                        else:
+                            message = f"매수 성공 !"
+                            send_message(message)
+                            last_buy_time = now
+                            multiplier = 1
             # 매도 조건
             else:
-                if btc > 0.00008:
+                if current_price >= sell_price-(PriceEase*multiplier):
                     btc = get_balance('BTC')
-                    if btc is not None:
-                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
-                        print(now, "매도")
+                    if btc > 0.00008 and btc is not None:
+                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc_amount)
+                        message = f"매도 완료 !"
+                        send_message(message)
+                        isForceStart = False
             # PriceEase 증가 조건
             if last_buy_time is not None:
                 time_since_last_buy = now - last_buy_time
                 if time_since_last_buy.total_seconds() >= 3600: # 1시간마다
                     multiplier += 1
+                    last_buy_time = now
                     if multiplier>5:
                         multiplier=5
                         last_buy_time = None
-                    last_buy_time = now
             time.sleep(1)
         except Exception as e:
             print(e)
