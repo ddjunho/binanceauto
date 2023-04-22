@@ -233,7 +233,7 @@ def job():
             if current_price <= target_price + PriceEase:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
-                    if usd > 10 and target_price + PriceEase < sell_price-(PriceEase*5):
+                    if usd > 35 and target_price + PriceEase < sell_price-(PriceEase*5):
                         if usd < buy_amount:
                             buy_amount = usd
                         try:
