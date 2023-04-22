@@ -215,7 +215,7 @@ def buy_coin(buy_amount):
 # 스케줄러 실행
 def job():
     usd = get_balance('USDT')
-    btc = get_position('BTC')
+    btc = get_position(COIN)
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
