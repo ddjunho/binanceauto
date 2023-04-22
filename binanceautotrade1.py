@@ -183,7 +183,7 @@ def handle(msg):
             bot.sendMessage(chat_id, 'Leverage setting complete!')
             Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정\n/restart - 재시작')
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정')
 MessageLoop(bot, handle).run_as_thread()
 def send_message(message):
     chat_id = "5820794752"
@@ -198,7 +198,6 @@ def buy_coin(buy_amount):
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
     print(btc_amount)
 # 스케줄러 실행
-start = True
 def job():
     usd = get_balance('USDT')
     btc = get_balance('BTC')
@@ -207,6 +206,7 @@ def job():
     time_since_last_buy = None
     buy_amount = usd * buy_unit # 분할 매수 금액 계산
     bull_market = False
+    start = True
     while stop == False:
         try:
             now = datetime.now()
@@ -240,7 +240,8 @@ def job():
                             buy_coin(buy_amount)
                             pass
                         except BinanceAPIException as e:
-                            print("매수 실패: {e}")
+                            message = f"매수 실패 {e}!"
+                            print(e)
                             send_message(message)
                         else:
                             message = f"매수 성공 !"
