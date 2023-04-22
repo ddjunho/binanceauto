@@ -231,10 +231,10 @@ def job():
                 target_price = predict_target_price(COIN, "low")
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = 1-is_bull_market(COIN, '1h')
-                hour_4 = 1-is_bull_market(COIN, '4h')
-                hour_8 = 1-is_bull_market(COIN, '8h')
-                hour_24 = 1-is_bull_market(COIN, '1d')
+                hour_1 = round(1-is_bull_market(COIN, '1h'),4)
+                hour_4 = round(1-is_bull_market(COIN, '4h'),4)
+                hour_8 = round(1-is_bull_market(COIN, '8h'),4)
+                hour_24 = round(1-is_bull_market(COIN, '1d'),4)
                 if hour_24 >= 0.5 and hour_4 >= 0.45 and hour_8 >= 0.45:
                     bull_market = True
                 else:
