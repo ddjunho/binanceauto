@@ -203,7 +203,6 @@ def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
 def buy_coin(buy_amount):
-    global btc_amount
     # Get the ticker information for COIN
     ticker = client.futures_ticker(symbol=COIN)
     price = float(ticker['lastPrice'])
@@ -211,11 +210,10 @@ def buy_coin(buy_amount):
     btc_amount = buy_amount / price
     btc_amount = round(btc_amount,3)
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
-    print(btc_amount)
 # 스케줄러 실행
 def job():
     usd = get_balance('USDT')
-    btc = get_position('BTC')
+    btc = get_position(COIN)
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
@@ -266,7 +264,7 @@ def job():
                 if current_price >= sell_price-(PriceEase*multiplier):
                     btc = get_balance('BTC')
                     if btc > 0.00008 and btc is not None:
-                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc_amount)
+                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc)
                         message = f"매도 완료 !"
                         send_message(message)
                         isForceStart = False
