@@ -41,7 +41,22 @@ def get_balance(ticker):
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
     return 0
-
+def get_position(ticker):
+    # 선물 거래 계좌 포지션 조회
+    try:
+        # Get futures account information
+        info = client.futures_account()
+        # Get positions
+        positions = info['positions']
+        # Find position for given ticker
+        for position in positions:
+            if position['symbol'] == ticker:
+                return float(position['positionAmt'])
+        # If ticker not found, return 0
+        return 0
+    except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
+        print(f"에러 발생: {e}")
+    return 0
 def get_current_price(ticker):
     # 현재가 조회
     try:
@@ -200,7 +215,7 @@ def buy_coin(buy_amount):
 # 스케줄러 실행
 def job():
     usd = get_balance('USDT')
-    btc = get_balance('BTC')
+    btc = get_position('BTC')
     multiplier = 1
     last_buy_time = None
     time_since_last_buy = None
