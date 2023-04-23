@@ -208,7 +208,7 @@ def buy_coin(buy_amount):
     price = float(ticker['lastPrice'])
     # Calculate the amount of BTC
     btc_amount = buy_amount / price
-    btc_amount = round(btc_amount,3)
+    btc_amount = round(btc_amount,3)-0.001
     client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
 # 스케줄러 실행
 def job():
