@@ -232,6 +232,7 @@ def job():
                 sell_price = predict_target_price(COIN, "high")
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = round(1-is_bull_market(COIN, '1h'),4)
+                hour_2 = round(1-is_bull_market(COIN, '2h'),4)
                 hour_4 = round(1-is_bull_market(COIN, '4h'),4)
                 hour_8 = round(1-is_bull_market(COIN, '8h'),4)
                 hour_24 = round(1-is_bull_market(COIN, '1d'),4)
@@ -239,7 +240,7 @@ def job():
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
                 send_message(message)
                 start = False
             # 매수 조건
