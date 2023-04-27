@@ -63,30 +63,31 @@ def get_current_price(ticker):
         return float(client.futures_symbol_ticker(symbol=ticker)['price'])
     except Exception as e:
         print(e)
-def predict_target_price(ticker, target_type):
-    # 데이터 불러오기
+def predict_target_prices(ticker):
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    # 입력 데이터 전처리
     df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     X = df[['open', 'high', 'low', 'close', 'volume']].values
     X_scaler = StandardScaler()
     X = X_scaler.fit_transform(X)
-    # 출력 데이터 전처리
-    y = df[target_type].values
-    y_scaler = StandardScaler()
-    y = y_scaler.fit_transform(y.reshape((-1, 1)))
-    # 학습 데이터 생성
+    y_high = df['high'].values
+    y_low = df['low'].values
+    y_scaler_high = StandardScaler()
+    y_high = y_scaler_high.fit_transform(y_high.reshape((-1, 1)))
+    y_scaler_low = StandardScaler()
+    y_low = y_scaler_low.fit_transform(y_low.reshape((-1, 1)))
     X_train = []
-    y_train = []
+    y_train_high = []
+    y_train_low = []
     data=999
     for i in range(data, len(X)):
         X_train.append(X[i - data:i, :])
-        y_train.append(y[i, 0])
+        y_train_high.append(y_high[i, 0])
+        y_train_low.append(y_low[i, 0])
     X_train = np.array(X_train)
-    y_train = np.array(y_train)
-    # Tensorflow 모델 구성
-    model = tf.keras.models.Sequential([
+    y_train_high = np.array(y_train_high)
+    y_train_low = np.array(y_train_low)
+    model_high = tf.keras.models.Sequential([
         tf.keras.layers.LSTM(128, input_shape=(data, 5)),
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
@@ -94,21 +95,30 @@ def predict_target_price(ticker, target_type):
         tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(1)
     ])
-    # 모델 컴파일
-    model.compile(optimizer='adam', loss='mse', run_eagerly=True)
-    # 학습
-    model.fit(X_train, y_train, epochs=100, verbose=1)
-    # 새로운 데이터에 대한 예측
+    model_high.compile(optimizer='adam', loss='mse', run_eagerly=True)
+    model_high.fit(X_train, y_train_high, epochs=100, verbose=1)
+    
+    model_low = tf.keras.models.Sequential([
+        tf.keras.layers.LSTM(128, input_shape=(data, 5)),
+        tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+        tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+        tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+        tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
+        tf.keras.layers.Dense(1)
+    ])
+    model_low.compile(optimizer='adam', loss='mse', run_eagerly=True)
+    model_low.fit(X_train, y_train_low, epochs=100, verbose=1)
+    
     last_data = df[['open', 'high', 'low', 'close', 'volume']].iloc[-data:].values
     last_data_mean = last_data.mean(axis=0)
     last_data_std = last_data.std(axis=0)
     last_data = (last_data - last_data_mean) / last_data_std
-    # 예측할 데이터의 shape를 (1,999, values)로 변경
     last_data = np.expand_dims(last_data, axis=0)
-    predicted_price = model.predict(last_data)
-    predicted_price = y_scaler.inverse_transform(predicted_price)
-    predicted_price = predicted_price.flatten()[0]  # 이중 리스트를 일차원으로 변경하고 첫 번째 원소를 선택
-    return float(predicted_price)
+    predicted_price_high = model_high.predict(last_data)
+    predicted_price_high = y_scaler_high.inverse_transform(predicted_price_high)
+    predicted_price_low = model_low.predict(last_data)
+    predicted_price_low = y_scaler_low.inverse_transform(predicted_price_low)
+    return predicted_price_high.flatten()[0], predicted_price_low.flatten()[0]
 
 def is_bull_market(ticker, time):
     candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
