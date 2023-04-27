@@ -230,6 +230,7 @@ def job():
     buy_amount = usd # 매수 금액 계산
     bull_market = False
     start = True
+    isForceStart = False
     while stop == False:
         try:
             now = datetime.now()
@@ -238,7 +239,7 @@ def job():
             if now.hour % 2 == 0 and now.minute == 0 or start == True:
                 usd = get_balance('USDT')
                 buy_amount = usd
-                target_price, sell_price = predict_target_prices(COIN)
+                sell_price, target_price = predict_target_prices(COIN)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = round(1-is_bull_market(COIN, '1h'),4)
                 hour_2 = round(1-is_bull_market(COIN, '2h'),4)
