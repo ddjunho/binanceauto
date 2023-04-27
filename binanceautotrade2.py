@@ -241,13 +241,13 @@ def job():
                 buy_amount = usd
                 sell_price, target_price = predict_target_prices(COIN)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = round((1-is_bull_market(COIN, '1h'))*100,4)
-                hour_2 = round((1-is_bull_market(COIN, '2h'))*100,4)
-                hour_4 = round((1-is_bull_market(COIN, '4h'))*100,4)
-                hour_6 = round((1-is_bull_market(COIN, '6h'))*100,4)
-                hour_8 = round((1-is_bull_market(COIN, '8h'))*100,4)
-                hour_24 = round((1-is_bull_market(COIN, '1d'))*100,4)
-                if hour_24 >= 0.5 and hour_4 >= 0.45 and hour_8 >= 0.45:
+                hour_1 = round((1-is_bull_market(COIN, '1h'))*100,5)
+                hour_2 = round((1-is_bull_market(COIN, '2h'))*100,5)
+                hour_4 = round((1-is_bull_market(COIN, '4h'))*100,5)
+                hour_6 = round((1-is_bull_market(COIN, '6h'))*100,5)
+                hour_8 = round((1-is_bull_market(COIN, '8h'))*100,5)
+                hour_24 = round((1-is_bull_market(COIN, '1d'))*100,5)
+                if hour_24 >= 50 and hour_4 >= 45 and hour_8 >= 45:
                     bull_market = True
                 else:
                     bull_market = False
