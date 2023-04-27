@@ -241,17 +241,18 @@ def job():
                 buy_amount = usd
                 sell_price, target_price = predict_target_prices(COIN)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = round(1-is_bull_market(COIN, '1h')*100,4)
-                hour_2 = round(1-is_bull_market(COIN, '2h')*100,4)
-                hour_4 = round(1-is_bull_market(COIN, '4h')*100,4)
-                hour_6 = round(1-is_bull_market(COIN, '6h')*100,4)
-                hour_8 = round(1-is_bull_market(COIN, '8h')*100,4)
-                hour_24 = round(1-is_bull_market(COIN, '1d'),4)
+                hour_1 = round((1-is_bull_market(COIN, '1h'))*100,4)
+                hour_2 = round((1-is_bull_market(COIN, '2h'))*100,4)
+                hour_4 = round((1-is_bull_market(COIN, '4h'))*100,4)
+                hour_6 = round((1-is_bull_market(COIN, '6h'))*100,4)
+                hour_8 = round((1-is_bull_market(COIN, '8h'))*100,4)
+                hour_24 = round((1-is_bull_market(COIN, '1d'))*100,4)
                 if hour_24 >= 0.5 and hour_4 >= 0.45 and hour_8 >= 0.45:
                     bull_market = True
                 else:
                     bull_market = False
-                message = f"Local time : {now} UTC\n매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8}%\n매매조건 : {bull_market}\n조건무시 : {isForceStart}\n내일 크거나 같을 확률{hour_24}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+                formatted = now.strftime('%Y-%m-%d %H:%M:%S')
+                message = f"Local time : {formatted} UTC\n매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8}%\n매매조건 : {bull_market}\n조건무시 : {isForceStart}\n내일 크거나 같을 확률{hour_24}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
                 send_message(message)
                 start = False
             # 매수 조건
