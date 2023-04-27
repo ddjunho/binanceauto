@@ -92,7 +92,6 @@ def predict_target_prices(ticker):
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(1)
     ])
     model_high.compile(optimizer='adam', loss='mse', run_eagerly=True)
@@ -103,7 +102,6 @@ def predict_target_prices(ticker):
         tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
         tf.keras.layers.Dense(1)
     ])
     model_low.compile(optimizer='adam', loss='mse', run_eagerly=True)
