@@ -118,7 +118,7 @@ def predict_target_prices(ticker):
     predicted_price_high = y_scaler_high.inverse_transform(predicted_price_high)
     predicted_price_low = model_low.predict(last_data)
     predicted_price_low = y_scaler_low.inverse_transform(predicted_price_low)
-    return predicted_price_high.flatten()[0], predicted_price_low.flatten()[0]
+    return float(predicted_price_high.flatten()[0]), float(predicted_price_low.flatten()[0])
 
 def is_bull_market(ticker, time):
     candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
@@ -238,8 +238,7 @@ def job():
             if now.hour % 2 == 0 and now.minute == 0 or start == True:
                 usd = get_balance('USDT')
                 buy_amount = usd
-                target_price = predict_target_price(COIN, "low")
-                sell_price = predict_target_price(COIN, "high")
+                target_price, sell_price = predict_target_prices(COIN)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = round(1-is_bull_market(COIN, '1h'),4)
                 hour_2 = round(1-is_bull_market(COIN, '2h'),4)
