@@ -71,7 +71,7 @@ def get_close_price(ticker):
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=7)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-    close_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * 0.7
+    close_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * 0.6
     return close_price
 
 def predict_target_prices(ticker):
@@ -247,10 +247,11 @@ def job():
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 2 == 0 and now.minute == 0 or start == True:
+            if now.hour % 2 == 0 and now.minute == 1 or start == True:
                 usd = get_balance('USDT')
                 buy_amount = usd
                 sell_price, target_price = predict_target_prices(COIN)
+                close_price = get_close_price(COIN)
                 PriceEase = round((sell_price - target_price) * 0.1, 1)
                 hour_1 = round((1-is_bull_market(COIN, '1h'))*100,5)
                 hour_2 = round((1-is_bull_market(COIN, '2h'))*100,5)
@@ -267,7 +268,7 @@ def job():
                 send_message(message)
                 start = False
             # 매수 조건
-            if current_price <= target_price + PriceEase:
+            if current_price <= target_price + PriceEase or current_price < close_price:
                 usd = get_balance('USDT')
                 if bull_market==True or isForceStart==True:
                     if usd > 35 and target_price + PriceEase < sell_price-(PriceEase*5):
