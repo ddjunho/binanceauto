@@ -41,6 +41,7 @@ def get_balance(ticker):
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
     return 0
+
 def get_position(ticker):
     # 선물 거래 계좌 포지션 조회
     try:
@@ -57,14 +58,17 @@ def get_position(ticker):
     except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
         print(f"에러 발생: {e}")
     return 0
+
 def get_current_price(ticker):
     # 현재가 조회
     try:
         return float(client.futures_symbol_ticker(symbol=ticker)['price'])
     except Exception as e:
         print(e)
+        
 def get_close_price(ticker):
-    candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
+    #변동성 돌파 전략
+    candles = client.futures_klines(symbol=ticker, interval='4h', limit=7)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     close_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * 0.7
