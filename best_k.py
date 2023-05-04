@@ -5,7 +5,7 @@ from binance_keys import api_key, api_secret
 client = Client(api_key, api_secret)
 
 def get_ror(k=0.5):
-    candles = client.futures_klines(symbol=ticker, interval='4h', limit=7)
+    candles = client.futures_klines(symbol="BTCUSDT", interval='4h', limit=7)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     df['range'] = (df['high'] - df['low']) * k
