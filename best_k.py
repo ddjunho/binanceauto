@@ -1,6 +1,8 @@
 from binance.client import Client
 import numpy as np
+from binance_keys import api_key, api_secret
 
+client = Client(api_key, api_secret)
 
 def get_ror(k=0.5):
     candles = client.futures_klines(symbol=ticker, interval='4h', limit=7)
