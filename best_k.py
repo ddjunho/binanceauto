@@ -1,5 +1,6 @@
 from binance.client import Client
 import numpy as np
+import pandas as pd
 from binance_keys import api_key, api_secret
 
 client = Client(api_key, api_secret)
@@ -12,7 +13,7 @@ def get_ror(k=0.5):
     df['target'] = df['open'] + df['range'].shift(1)
 
     df['ror'] = np.where(df['high'] > df['target'], df['close'] / df['target'],1)
-    ror = df['ror'].cumprod()[-2]
+    ror = df['ror'].cumprod().iloc[-2]
     return ror
 
 for k in np.arange(0.1, 1.0, 0.1):
