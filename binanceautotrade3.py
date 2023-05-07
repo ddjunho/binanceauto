@@ -247,7 +247,7 @@ def job():
             now = datetime.now()
             current_price = get_current_price(COIN)
             client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 2 == 0 and now.minute == 1 or start == True:
+            if now.hour % 4 == 0 and now.minute == 1 or start == True:
                 usd = get_balance('USDT')
                 buy_amount = usd
                 sell_price, target_price = predict_target_prices(COIN)
