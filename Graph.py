@@ -1,7 +1,26 @@
 import matplotlib.pyplot as plt
+import math
+import time
+import datetime
+import json
+import pandas as pd
+import numpy as np
+import schedule
+import telepot
+import tensorflow as tf
+import requests.exceptions
+import simplejson.errors
+from binance.client import Client
+from binance.exceptions import BinanceAPIException
+from datetime import datetime
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-import pandas as pd
+from tensorflow.keras import regularizers
+from binance_keys import api_key, api_secret
+
+client = Client(api_key, api_secret)
+COIN = "BTCUSDT" 
 
 def is_bull_market(ticker, time):
     candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
@@ -57,3 +76,9 @@ def is_bull_market(ticker, time):
     plt.plot(DF['macd'], label='MACD')
     plt.plot(DF['macdsignal'], label='Signal')
     plt.bar(DF.index, DF['macdhist'], label='Histogram')
+hour_1 = round((1-is_bull_market(COIN, '1h'))*100,5)
+hour_2 = round((1-is_bull_market(COIN, '2h'))*100,5)
+hour_4 = round((1-is_bull_market(COIN, '4h'))*100,5)
+hour_6 = round((1-is_bull_market(COIN, '6h'))*100,5)
+hour_8 = round((1-is_bull_market(COIN, '8h'))*100,5)
+hour_24 = round((1-is_bull_market(COIN, '1d'))*100,5)
