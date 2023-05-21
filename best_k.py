@@ -19,10 +19,11 @@ def get_low_and_high(k_low=0.5, k_high=0.5):
     high = df['high'].cumprod().iloc[-2]
     return low, high
 
+print("low:")
 for k in np.arange(0.1, 1.0, 0.1):
-    low = get_low_and_high(k_low=k)
-    print("%.1f %f %f" % (k, low))
-
+    low, high = get_low_and_high(k_low=k)
+    print("%.1f %f" % (k, low))
+print("high:")
 for k in np.arange(1.0, 2.0, 0.1):
-    high = get_low_and_high(k_high=k)
-    print("%.1f %f %f" % (k, high))
+    low, high = get_low_and_high(k_high=k)
+    print("%.1f %f" % (k, high))
