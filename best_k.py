@@ -21,8 +21,8 @@ def get_low_and_high(k_low=0.5, k_high=0.5):
 
 for k in np.arange(0.1, 1.0, 0.1):
     low, high = get_low_and_high(k_low=k)
-    print("%.1f %f %f" % (k, low, high))
+    print("%.1f %f %f" % (k, low))
 
 for k in np.arange(1.0, 2.0, 0.1):
     low, high = get_low_and_high(k_high=k)
-    print("%.1f %f %f" % (k, low, high))
+    print("%.1f %f %f" % (k, high))
