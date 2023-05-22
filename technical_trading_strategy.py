@@ -2,6 +2,8 @@ from binance.client import Client
 import numpy as np
 import pandas as pd
 from binance_keys import api_key, api_secret
+from statsmodels.tsa.arima.model import ARIMA
+import schedule
 
 client = Client(api_key, api_secret)
 
@@ -110,6 +112,5 @@ def predict_price(ticker):
     if hour % 4 == 0:
         closeValue = forecast[0][-1]
         predicted_close_price = closeValue
-
 predict_price(best_ticker)
 schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
