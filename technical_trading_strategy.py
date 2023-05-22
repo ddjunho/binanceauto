@@ -88,3 +88,28 @@ print("수익률:", best_ror)
 # 목표가격을 구하고 출력하기
 target_price = get_target_price(best_ticker, best_k, best_type)
 print("목표가격:", target_price)
+
+predicted_close_price = 0
+def predict_price(ticker):
+    global predicted_close_price
+    candles = client.futures_klines(symbol=ticker, interval='15m', limit=108)
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored']) # 데이터 프레임 생성
+    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
+    df = df.reset_index()
+    df['ds'] = df['index']
+    df['y'] = df['close']
+    data = df[['ds','y']]
+    model = ARIMA(data['y'], order=(1,1,1)) # arima 모델 생성
+    model_fit = model.fit() # 모델 학습
+    current_time = data.iloc[-1]['ds'].hour
+    target_time = (current_time // 4 + 1) * 4
+    diff_time = target_time - current_time
+    n = diff_time * 4 + 1
+    forecast = model_fit.forecast(n) 
+    hour = forecast.iloc[-1]['ds'].hour
+    if hour % 4 == 0:
+        closeValue = forecast[0][-1]
+        predicted_close_price = closeValue
+
+predict_price(best_ticker)
+schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
