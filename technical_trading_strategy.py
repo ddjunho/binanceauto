@@ -94,7 +94,7 @@ print("목표가격:", target_price)
 predicted_close_price = 0
 def predict_price(ticker):
     global predicted_close_price
-    candles = client.futures_klines(symbol=ticker, interval='15m', limit=108)
+    candles = client.futures_klines(symbol=ticker, interval='15m', limit=96)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored']) # 데이터 프레임 생성
     df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
     df = df.reset_index()
