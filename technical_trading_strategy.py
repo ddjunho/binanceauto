@@ -5,79 +5,86 @@ from binance_keys import api_key, api_secret
 
 client = Client(api_key, api_secret)
 
-# 거래량이 폭증한 티커를 반환하는 함수 정의
+# 거래량이 폭증한 티커와 증가 비율을 반환하는 함수 정의
 def get_surge_tickers():
-    tickers = client.get_all_tickers()
-    df_tickers = pd.DataFrame(tickers)
-    df_tickers = df_tickers[df_tickers['symbol'].str.contains('USDT')]
-    exchange_info = client.futures_exchange_info()
-    symbols = [item['symbol'] for item in exchange_info['symbols']]
-    df_tickers = df_tickers[df_tickers['symbol'].isin(symbols)]
-    ticker_list = df_tickers['symbol'].tolist()
-    surge_list = []
-    for ticker in ticker_list:
-        candles = client.futures_klines(symbol=ticker, interval='4h', limit=6)
-        df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-        df['volume'] = df['volume'].astype(float)
-        mean_volume = df['volume'].mean()
-        max_volume = df['volume'].max()
-        if max_volume >= mean_volume * 1.5 and mean_volume > 0: # 거래량이 증가한 비율을 계산하고 surge_list에 티커와 함께 추가하기
-            surge_ratio = max_volume / mean_volume
-            surge_list.append((ticker, surge_ratio))
-    surge_list.sort(key=lambda x: x[1], reverse=True)
-    return surge_list[:3]
-COIN_1 = get_surge_tickers()[0][0]
-COIN_2 = get_surge_tickers()[1][0]
-COIN_3 = get_surge_tickers()[2][0]
-
-def get_low_and_high(k_low=0.5, k_high=0.5, coin="BTCUSDT"):
-    candles = client.futures_klines(symbol=coin, interval='4h', limit=6)
+  tickers = client.get_all_tickers()
+  df_tickers = pd.DataFrame(tickers)
+  df_tickers = df_tickers[df_tickers['symbol'].str.contains('USDT')]
+  exchange_info = client.futures_exchange_info()
+  symbols = [item['symbol'] for item in exchange_info['symbols']]
+  df_tickers = df_tickers[df_tickers['symbol'].isin(symbols)]
+  ticker_list = df_tickers['symbol'].tolist()
+  surge_list = []
+  for ticker in ticker_list:
+    candles = client.futures_klines(symbol=ticker, interval='4h', limit=6)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-    df['range'] = (df['high'] - df['low'])
-    df['target_low'] = df['open'] + df['range'].shift(1) * k_low
-    df['ror_low'] = np.where(df['high'] > df['target_low'], df['close'] / df['target_low'],1)
-    low = df['ror_low'].cumprod().iloc[-2]
-    df['target_high'] = df['open'] - df['range'].shift(1) * k_high
-    df['ror_high'] = np.where(df['low'] < df['target_high'], df['target_high'] / df['close'],1)
-    high = df['ror_high'].cumprod().iloc[-2]
-    return low, high
+    df['volume'] = df['volume'].astype(float)
+    mean_volume = df['volume'].mean()
+    max_volume = df['volume'].max()
+    if max_volume >= mean_volume * 1.5 and mean_volume > 0:
+      # 거래량이 증가한 비율을 계산하고 surge_list에 티커와 함께 추가하기
+      surge_ratio = max_volume / mean_volume
+      surge_list.append((ticker, surge_ratio))
+  surge_list.sort(key=lambda x: x[1], reverse=True)
+  return surge_list[:3]
 
-coins = [COIN_1, COIN_2, COIN_3]
+# 저가와 고가 기준의 수익률을 반환하는 함수 정의
+def get_ror_by_low_and_high(k_low=0.5, k_high=0.5, coin="BTCUSDT"):
+  candles = client.futures_klines(symbol=coin, interval='4h', limit=6)
+  df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+  df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
+  df['range'] = (df['high'] - df['low'])
+  df['target_low'] = df['open'] + df['range'].shift(1) * k_low
+  df['ror_low'] = np.where(df['high'] > df['target_low'], df['close'] / df['target_low'],1)
+  low_ror = df['ror_low'].cumprod().iloc[-2]
+  df['target_high'] = df['open'] - df['range'].shift(1) * k_high
+  df['ror_high'] = np.where(df['low'] < df['target_high'], df['target_high'] / df['close'],1)
+  high_ror = df['ror_high'].cumprod().iloc[-2]
+  return low_ror, high_ror
 
-best_ticker = None
-best_k = None
-best_ror = 0
-best_type = None
-
-for coin in coins:
+# 가장 수익률이 높은 티커와 k값과 구분을 반환하는 함수 정의
+def get_best_ticker_and_k_and_type():
+  surge_tickers = get_surge_tickers()
+  best_ticker = None
+  best_k = None
+  best_ror = 0
+  best_type = None
+  for coin, ratio in surge_tickers:
     for k in np.arange(0.1, 1.0, 0.1):
-        low, high = get_low_and_high(k_low=k, coin=coin)
-        if low > best_ror:
-            best_ticker = coin
-            best_k = k
-            best_ror = low
-            best_type = "low"
-        if high > best_ror:
-            best_ticker = coin
-            best_k = k
-            best_ror = high
-            best_type = "high"
+      low_ror, high_ror = get_ror_by_low_and_high(k_low=k, coin=coin)
+      if low_ror > best_ror:
+        best_ticker = coin
+        best_k = k
+        best_ror = low_ror
+        best_type = "low"
+      if high_ror > best_ror:
+        best_ticker = coin
+        best_k = k
+        best_ror = high_ror
+        best_type = "high"
+  return best_ticker, best_k, best_type
 
-print(coins)
-print("가장 수익률이 높은 티커와 k값은 다음과 같습니다.")
+# 목표가격을 반환하는 함수 정의
+def get_target_price(ticker, k, type):
+  #변동성 돌파 전략
+  candles = client.futures_klines(symbol=ticker, interval='4h', limit=6)
+  df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
+  df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
+  if type == "low":
+    low_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * k #저가 계산
+    return low_price
+  elif type == "high":
+    high_price = df.iloc[0]['close'] - (df.iloc[0]['high'] - df.iloc[0]['low']) * k #고가 계산
+    return high_price
+
+# 가장 수익률이 높은 티커와 k값과 구분을 구하고 출력하기
+best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
+print("가장 수익률이 높은 티커와 k값과 구분은 다음과 같습니다.")
 print("티커:", best_ticker)
 print("구분:", best_type) # low와 high를 출력하기
 print("k값:", best_k)
 print("수익률:", best_ror)
-def get_target_price(ticker_list):
-    #변동성 돌파 전략
-    low_high_dict = {} #저가와 고가를 저장할 딕셔너리
-    for ticker in ticker_list: #ticker리스트를 순회하면서
-        candles = client.futures_klines(symbol=ticker, interval='4h', limit=6)
-        df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-        df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-        low_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * 0.6 #저가 계산
-        high_price = df.iloc[0]['close'] + (df.iloc[0]['high'] - df.iloc[0]['low']) * 1.0 #고가 계산
-        low_high_dict[ticker] = (low_price, high_price) #딕셔너리에 저장
-    return low_high_dict #딕셔너리 반환
+
+# 목표가격을 구하고 출력하기
+target_price = get_target_price(best_ticker, best_k, best_type)
+print("목표가격:", target_price)
