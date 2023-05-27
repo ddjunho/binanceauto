@@ -114,3 +114,51 @@ def predict_price(ticker):
         predicted_close_price = closeValue
 predict_price(best_ticker)
 schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
+
+# 코인개수 계산 함수 정의
+def calculate_quantity(symbol, leverage):
+    balance = client.futures_account_balance()
+    usdt_balance = float([item["balance"] for item in balance if item["asset"] == "USDT"][0])
+    market_price = float(client.futures_mark_price(symbol=symbol)["markPrice"])
+    quantity = usdt_balance * leverage / market_price
+    precision = client.futures_exchange_info()["symbols"][symbol]["quantityPrecision"]
+    quantity = math.floor(quantity * 10**precision) / 10**precision
+    return quantity
+  
+# 매수 함수 정의
+def buy(symbol, quantity, leverage):
+    client.futures_change_leverage(symbol=symbol, leverage=leverage)
+    order = client.futures_create_order(
+        symbol=symbol,
+        side=SIDE_BUY,
+        type=ORDER_TYPE_MARKET,
+        quantity=quantity)
+
+# 매도 함수 정의
+def sell(symbol, quantity, leverage):
+    client.futures_change_leverage(symbol=symbol, leverage=leverage)
+    order = client.futures_create_order(
+        symbol=symbol,
+        side=SIDE_SELL,
+        type=ORDER_TYPE_MARKET,
+        quantity=quantity)
+    
+#포지션 종료함수 정의
+ def close_position(symbol, side):
+    position = client.futures_position_information(symbol=symbol)
+    quantity = float([item["positionAmt"] for item in position if item["positionSide"] == side][0])
+    if side == "LONG" and quantity > 0:
+        client.futures_create_order(symbol=symbol, side="SELL", type="MARKET", quantity=quantity)
+        print(f"Closed long position of {quantity} {symbol} at market price.")
+    elif side == "SHORT" and quantity < 0:
+        client.futures_create_order(symbol=symbol, side="BUY", type="MARKET", quantity=-quantity)
+        print(f"Closed short position of {-quantity} {symbol} at market price.")
+    else:
+        print(f"No {side.lower()} position of {symbol} to close.")
+
+
+buy("BTCUSDT", 0.01, 10)
+sell("BTCUSDT", 0.01, 10)
+quantity = calculate_quantity("BTCUSDT", 10)
+close_position("BTCUSDT", "LONG")
+close_position("ETHUSDT", "SHORT")
