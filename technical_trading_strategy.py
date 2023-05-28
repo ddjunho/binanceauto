@@ -79,18 +79,7 @@ def get_target_price(ticker, k, type):
     high_price = df.iloc[0]['close'] - (df.iloc[0]['high'] - df.iloc[0]['low']) * k #고가 계산
     return high_price
 
-# 가장 수익률이 높은 티커와 k값과 구분을 구하고 출력하기
-best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
-print("가장 수익률이 높은 티커와 k값과 구분은 다음과 같습니다.")
-print("티커:", best_ticker)
-print("구분:", best_type) # low와 high를 출력하기
-print("k값:", best_k)
-print("수익률:", best_ror)
-
-# 목표가격을 구하고 출력하기
-target_price = get_target_price(best_ticker, best_k, best_type)
-print("목표가격:", target_price)
-
+# 시계열 분석 함수
 predicted_close_price = 0
 def predict_price(ticker):
     global predicted_close_price
@@ -144,21 +133,33 @@ def sell(symbol, quantity, leverage):
         quantity=quantity)
     
 #포지션 종료함수 정의
- def close_position(symbol, side):
+def close_position(symbol):
     position = client.futures_position_information(symbol=symbol)
-    quantity = float([item["positionAmt"] for item in position if item["positionSide"] == side][0])
-    if side == "LONG" and quantity > 0:
-        client.futures_create_order(symbol=symbol, side="SELL", type="MARKET", quantity=quantity)
-        print(f"Closed long position of {quantity} {symbol} at market price.")
-    elif side == "SHORT" and quantity < 0:
-        client.futures_create_order(symbol=symbol, side="BUY", type="MARKET", quantity=-quantity)
-        print(f"Closed short position of {-quantity} {symbol} at market price.")
-    else:
-        print(f"No {side.lower()} position of {symbol} to close.")
+    long_quantity = float([item["positionAmt"] for item in position if item["positionSide"] == "LONG"][0])
+    short_quantity = float([item["positionAmt"] for item in position if item["positionSide"] == "SHORT"][0])
+    if long_quantity > 0:
+        client.futures_create_order(symbol=symbol, side="SELL", type="MARKET", quantity=long_quantity)
+        print(f"Closed long position of {long_quantity} {symbol} at market price.")
+    if short_quantity < 0:
+        client.futures_create_order(symbol=symbol, side="BUY", type="MARKET", quantity=-short_quantity)
+        print(f"Closed short position of {-short_quantity} {symbol} at market price.")
+    if long_quantity == 0 and short_quantity == 0:
+        print(f"No position of {symbol} to close.")
 
 
-buy("BTCUSDT", 0.01, 10)
-sell("BTCUSDT", 0.01, 10)
-quantity = calculate_quantity("BTCUSDT", 10)
-close_position("BTCUSDT", "LONG")
-close_position("ETHUSDT", "SHORT")
+# 가장 수익률이 높은 티커와 k값과 구분을 구하고 출력하기
+best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
+print("가장 수익률이 높은 티커와 k값과 구분은 다음과 같습니다.")
+print("티커:", best_ticker)
+print("구분:", best_type) # low와 high를 출력하기
+print("k값:", best_k)
+print("수익률:", best_ror)
+
+# 목표가격을 구하고 출력하기
+target_price = get_target_price(best_ticker, best_k, best_type)
+print("목표가격:", target_price)
+
+quantity = calculate_quantity(best_ticker, 10)
+buy(best_ticker, quantity, 10)
+sell(best_ticker, quantity, 10)
+close_position("ETHUSDT")
