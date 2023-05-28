@@ -4,7 +4,10 @@ import pandas as pd
 from binance_keys import api_key, api_secret
 from statsmodels.tsa.arima.model import ARIMA
 import schedule
+import telepot
+from telepot.loop import MessageLoop
 
+bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
 client = Client(api_key, api_secret)
 
 # 거래량이 폭증한 티커와 증가 비율을 반환하는 함수 정의
@@ -146,7 +149,12 @@ def close_position(symbol):
     if long_quantity == 0 and short_quantity == 0:
         print(f"No position of {symbol} to close.")
 
+def send_message(message):
+    chat_id = "5820794752"
+    bot.sendMessage(chat_id, message)
 
+message = f"Local time : {formatted} UTC\n매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n변동성돌파종가 조회 : {close_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8}%\n매매조건 : {bull_market}\n조건무시 : {isForceStart}\n내일 크거나 같을 확률{hour_24}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
+send_message(message)
 # 가장 수익률이 높은 티커와 k값과 구분을 구하고 출력하기
 best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
 print("가장 수익률이 높은 티커와 k값과 구분은 다음과 같습니다.")
