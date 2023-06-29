@@ -82,31 +82,6 @@ def get_target_price(ticker, k, type):
     high_price = df.iloc[0]['close'] - (df.iloc[0]['high'] - df.iloc[0]['low']) * k #고가 계산
     return high_price
 
-# 시계열 분석 함수
-predicted_close_price = 0
-def predict_price(ticker):
-    global predicted_close_price
-    candles = client.futures_klines(symbol=ticker, interval='15m', limit=96)
-    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored']) # 데이터 프레임 생성
-    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-    df = df.reset_index()
-    df['ds'] = df['index']
-    df['y'] = df['close']
-    data = df[['ds','y']]
-    model = ARIMA(data['y'], order=(1,1,1)) # arima 모델 생성
-    model_fit = model.fit() # 모델 학습
-    current_time = data.iloc[-1]['ds'].hour
-    target_time = (current_time // 4 + 1) * 4
-    diff_time = target_time - current_time
-    n = diff_time * 4 + 1
-    forecast = model_fit.forecast(n) 
-    hour = forecast.iloc[-1]['ds'].hour
-    if hour % 4 == 0:
-        closeValue = forecast[0][-1]
-        predicted_close_price = closeValue
-predict_price(best_ticker)
-schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
-
 # 코인개수 계산 함수 정의
 def calculate_quantity(symbol, leverage):
     balance = client.futures_account_balance()
@@ -152,6 +127,31 @@ def close_position(symbol):
 def send_message(message):
     chat_id = "5820794752"
     bot.sendMessage(chat_id, message)
+
+# 시계열 분석 함수
+predicted_close_price = 0
+def predict_price(ticker):
+    global predicted_close_price
+    candles = client.futures_klines(symbol=ticker, interval='15m', limit=96)
+    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored']) # 데이터 프레임 생성
+    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
+    df = df.reset_index()
+    df['ds'] = df['index']
+    df['y'] = df['close']
+    data = df[['ds','y']]
+    model = ARIMA(data['y'], order=(1,1,1)) # arima 모델 생성
+    model_fit = model.fit() # 모델 학습
+    current_time = data.iloc[-1]['ds'].hour
+    target_time = (current_time // 4 + 1) * 4
+    diff_time = target_time - current_time
+    n = diff_time * 4 + 1
+    forecast = model_fit.forecast(n) 
+    hour = forecast.iloc[-1]['ds'].hour
+    if hour % 4 == 0:
+        closeValue = forecast[0][-1]
+        predicted_close_price = closeValue
+predict_price(best_ticker)
+schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
 
 message = f"Local time : {formatted} UTC\n매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n변동성돌파종가 조회 : {close_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8}%\n매매조건 : {bull_market}\n조건무시 : {isForceStart}\n내일 크거나 같을 확률{hour_24}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
 send_message(message)
