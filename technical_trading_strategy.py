@@ -150,13 +150,13 @@ def predict_price(ticker):
     if hour % 4 == 0:
         closeValue = forecast[0][-1]
         predicted_close_price = closeValue
+best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
 predict_price(best_ticker)
 schedule.every(15).minutes.do(lambda: predict_price(best_ticker)) # 15분마다 예측 함수 실행
 
 message = f"Local time : {formatted} UTC\n매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n변동성돌파종가 조회 : {close_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1}%\n2시간뒤 크거나 같을 확률 예측 : {hour_2}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4}%\n6시간뒤 크거나 같을 확률 예측 : {hour_6}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8}%\n매매조건 : {bull_market}\n조건무시 : {isForceStart}\n내일 크거나 같을 확률{hour_24}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
 send_message(message)
 # 가장 수익률이 높은 티커와 k값과 구분을 구하고 출력하기
-best_ticker, best_k, best_type = get_best_ticker_and_k_and_type()
 print("가장 수익률이 높은 티커와 k값과 구분은 다음과 같습니다.")
 print("티커:", best_ticker)
 print("구분:", best_type) # low와 high를 출력하기
