@@ -1,6 +1,7 @@
 from binance.client import Client
 import numpy as np
 import pandas as pd
+from pandas import Timestamp
 from binance_keys import api_key, api_secret
 from fbprophet import Prophet
 import schedule
@@ -131,26 +132,30 @@ def send_message(message):
     bot.sendMessage(chat_id, message)
 
 
-# 시계열 분석 함수
 predicted_close_price = 0
+
 def predict_price(ticker):
     global predicted_close_price
     candles = client.futures_klines(symbol=ticker, interval='15m', limit=96)
     df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
     df = df.astype({'open': 'float', 'high': 'float', 'low': 'float', 'close': 'float', 'volume': 'float'})
     df = df.reset_index()
-    df['ds'] = df['index'].apply(lambda x: datetime.datetime.fromtimestamp(x / 1000))  # 타임스탬프를 datetime 객체로 변환
+    df['ds'] = pd.to_datetime(df['index'], unit='ms')
     df['y'] = df['close']
-    data = df[['ds', 'y']]
-    # Prophet 모델 학습
+    data = df[['ds','y']]
     model = Prophet()
-    model.fit(data)
-    current_time = data.iloc[-1]['ds']
-    target_time = current_time.floor('4H') + pd.DateOffset(hours=4)
-    future = pd.DataFrame({'ds': [target_time]})
-    forecast = model.predict(future)
-    close_value = forecast.iloc[0]['yhat']
-    predicted_close_price = close_value
+    model.fit(data)    
+    future = pd.DataFrame(pd.date_range(start=data['ds'].iloc[-1], periods=4, freq='4H'), columns=['ds'])
+    forecast = model.predict(future)    
+    current_time = datetime.now()
+    future_times = forecast['ds']
+    closest_future_time = min([t for t in future_times if t > current_time], key=lambda x: abs((x - current_time).total_seconds()))
+    closeDf = forecast[forecast['ds'] == closest_future_time]
+    if len(closeDf) == 0:
+      closeDf = forecast[forecast['ds'] == data.iloc[-1]['ds'].replace(hour=closest_future_time.hour)]    
+    closeValue = closeDf['yhat'].values[0]
+    predicted_close_price = closeValue
+
 
 best_ticker, best_k, best_type, best_ror = get_best_ticker_and_k_and_type(get_surge_tickers())
 
@@ -164,9 +169,10 @@ print("티커:", best_ticker)
 print("구분:", best_type) # low와 high를 출력하기
 print("k값:", best_k)
 print("수익률:", best_ror)
+
+# 목표가격을 구하고 출력하기
 predict_price(best_ticker)
 print("종가예측:",predicted_close_price)
-# 목표가격을 구하고 출력하기
 target_price = get_target_price(best_ticker, best_k, best_type)
 print("목표가격:", target_price)
 
@@ -174,3 +180,6 @@ print("목표가격:", target_price)
 # buy(best_ticker, quantity, 10)
 # sell(best_ticker, quantity, 10)
 # close_position("ETHUSDT")
+# while True:
+#     schedule.run_pending()
+#     time.sleep(1)
