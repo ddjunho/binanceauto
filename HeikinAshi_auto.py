@@ -50,10 +50,10 @@ def calculate_volume_oscillator(data, short_period, long_period):
 
 
 # 히킨 아시 캔들 계산 함수 정의
-def calculate_heikin_ashi_candles(candles):
+def calculate_heikin_ashi_candles(df):
     heikin_ashi_candles = []
-    for candle in candles:
-        timestamp, open_price, high, low, close, volume = candle
+    for index, row in df.iterrows():
+        timestamp, open_price, high, low, close, volume = row
         if len(heikin_ashi_candles) == 0:
             ha_close = (open_price + high + low + close) / 4
             ha_open = open_price
@@ -71,6 +71,7 @@ def calculate_heikin_ashi_candles(candles):
             'ha_close': ha_close,
         })
     return heikin_ashi_candles
+
 
 
 # 매수 및 매도 주문 함수 정의
@@ -227,14 +228,14 @@ while True:
             symbol=symbol,
             timeframe=timeframe,
             since=None,
-            limit=10
+            limit=1
         )
 
-        df = pd.DataFrame(data=candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         close_prices = df['close'].astype(float)
-
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         # 히킨 아시 캔들 계산
-        heikin_ashi_candles = calculate_heikin_ashi_candles(candles)
+        heikin_ashi_candles = calculate_heikin_ashi_candles(df)
 
         # 이동평균 계산
         ema9 = calculate_ema(close_prices, 9)
