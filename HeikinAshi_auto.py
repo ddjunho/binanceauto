@@ -1,5 +1,6 @@
 import ccxt
 import numpy as np
+import pandas as pd
 import telepot
 from telepot.loop import MessageLoop
 
@@ -9,19 +10,24 @@ chat_id = "5820794752"
 # Binance API 설정
 from binance_keys import api_key, api_secret
 
-exchange = ccxt.binance({
+exchange = ccxt.binance(config={
     'rateLimit': 1000,
     'enableRateLimit': True,
     'apiKey': api_key,
     'secret': api_secret,
+    'options': {
+        'defaultType': 'future'
+    }
 })
 
 # 트레이딩 페어 및 타임프레임 설정
-symbol = 'BTC/USDT'
+symbol = 'BTCUSDT'
 timeframe = '5m'
 
 # 레버리지 설정
-leverage = 10 
+leverage = 10
+exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage})
+
 
 # 이동평균 계산 함수 정의
 def calculate_ema(data, period):
@@ -34,12 +40,14 @@ def calculate_ema(data, period):
             ema.append(alpha * price + (1 - alpha) * ema[-1])
     return ema
 
+
 # 볼륨 오실레이터 계산 함수 정의
 def calculate_volume_oscillator(data, short_period, long_period):
     short_ema = calculate_ema(data, short_period)
     long_ema = calculate_ema(data, long_period)
     oscillator = np.array(short_ema) - np.array(long_ema)
     return oscillator
+
 
 # 히킨 아시 캔들 계산 함수 정의
 def calculate_heikin_ashi_candles(candles):
@@ -64,15 +72,11 @@ def calculate_heikin_ashi_candles(candles):
         })
     return heikin_ashi_candles
 
+
 # 매수 및 매도 주문 함수 정의
 def place_buy_order(quantity):
     try:
-        order = exchange.fapiPrivate_create_order(
-            symbol=symbol,
-            side='BUY',
-            type='MARKET',
-            quantity=quantity
-        )
+        order = exchange.create_market_buy_order(symbol, quantity)
         message = f"Placed a BUY order for {quantity} {symbol} at market price."
         send_to_telegram(message)
         return order
@@ -81,14 +85,10 @@ def place_buy_order(quantity):
         send_to_telegram(error_message)
         return None
 
+
 def place_sell_order(quantity):
     try:
-        order = exchange.fapiPrivate_create_order(
-            symbol=symbol,
-            side='SELL',
-            type='MARKET',
-            quantity=quantity
-        )
+        order = exchange.create_market_sell_order(symbol, quantity)
         message = f"Placed a SELL order for {quantity} {symbol} at market price."
         send_to_telegram(message)
         return order
@@ -97,54 +97,90 @@ def place_sell_order(quantity):
         send_to_telegram(error_message)
         return None
 
+
 # 매매량 계산 함수 정의
-def calculate_quantity(symbol, leverage):
+def calculate_quantity():
     try:
-        balance = exchange.fetch_balance()
-        usdt_balance = balance['total']['USDT']
-        market_price = exchange.fetch_ticker(symbol)['last']
-        precision = exchange.markets[symbol]['precision']['quantity']
-        quantity = usdt_balance * leverage / market_price
-        quantity = exchange.decimal_to_precision(quantity, roundingMode='DOWN', precision=precision)
-        return float(quantity)
+        balance = exchange.fetch_balance(params={"type": "future"})
+        total_balance = float(balance['total']['USDT'])
+        
+        # 현재 BTCUSDT 가격 조회
+        ticker = exchange.fetch_ticker(symbol)
+        btc_price = float(ticker['last'])
+        
+        # USDT 잔고를 BTC로 환산
+        quantity = total_balance / btc_price
+        
+        # 소수점 이하 자리 제거
+        quantity = round(quantity, 0)
+        
+        return quantity
     except Exception as e:
         error_message = f"An error occurred while calculating the quantity: {e}"
         send_to_telegram(error_message)
         return None
 
+
 # 메수 (롱) 진입 조건 함수 정의
 def should_enter_long(ohlcv, ema9, ema18, volume_oscillator):
-    # 조건 1: 9EMA가 18EMA를 상향돌파해야 함
-    if ema9[-1] > ema18[-1] and ema9[-2] <= ema18[-2]:
-        # 조건 2: 하이켄 아시 캔들이 EMA선 위로 올라와야 함
-        heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
-        if heikin_ashi_candles[-1]['ha_close'] > ema9[-1]:
-            # 조건 3: 9EMA가 18EMA 위에 위치할 때 음봉이 EMA를 터치하고 양봉으로 반등해야 함
-            for i in range(-1, -len(ohlcv) - 1, -1):
-                if ema9[i] > ema18[i] and heikin_ashi_candles[i]['ha_close'] < ema9[i]:
-                    for j in range(i, -len(ohlcv) - 1, -1):
-                        if heikin_ashi_candles[j]['ha_close'] > heikin_ashi_candles[j]['ha_open']:
-                            # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
-                            if volume_oscillator[j] >= 0:
-                                return True
+    # 초기 조건 값 설정
+    ema9_crossed_above_ema18 = False
+    heikin_ashi_candles_above_ema9 = False
+
+    # 조건 1: 9EMA가 18EMA를 상향돌파한 시점 이후부터 검사
+    for i in range(-1, -len(ohlcv) - 1, -1):
+        if ema9[i] > ema18[i] and ema9[i - 1] <= ema18[i - 1]:
+            ema9_crossed_above_ema18 = True
+
+        if ema9_crossed_above_ema18:
+            # 조건 2: 하이켄 아시 캔들이 EMA선 위로 올라와야 함 (양봉인 경우에만)
+            heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
+            if heikin_ashi_candles[i]['ha_close'] > ema9[i] and heikin_ashi_candles[i]['ha_close'] > heikin_ashi_candles[i]['ha_open']:
+                heikin_ashi_candles_above_ema9 = True
+                break  # 조건 충족 후 종료
+
+    # 조건 3: 9EMA가 18EMA 위에 위치할 때 음봉이 EMA를 터치하고 양봉으로 반등해야 함
+    if ema9_crossed_above_ema18 and heikin_ashi_candles_above_ema9:
+        for i in range(-1, -len(ohlcv) - 1, -1):
+            if ema9[i] > ema18[i] and heikin_ashi_candles[i]['ha_close'] < ema9[i]:
+                for j in range(i, -len(ohlcv) - 1, -1):
+                    if heikin_ashi_candles[j]['ha_close'] > heikin_ashi_candles[j]['ha_open']:
+                        # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
+                        if volume_oscillator[j] >= 0:
+                            return True
     return False
+
 
 # 메도 (숏) 진입 조건 함수 정의
 def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
-    # 조건 1: 9EMA가 18EMA를 하향돌파해야 함
-    if ema9[-1] < ema18[-1] and ema9[-2] >= ema18[-2]:
-        # 조건 2: 하이켄 아시 캔들이 EMA선 아래로 내려와야 함
-        heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
-        if heikin_ashi_candles[-1]['ha_close'] < ema9[-1]:
-            # 조건 3: 9EMA가 18EMA 아래에 위치할 때 양봉이 EMA를 터치하고 음봉으로 하락해야 함
-            for i in range(-1, -len(ohlcv) - 1, -1):
-                if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]:
-                    for j in range(i, -len(ohlcv) - 1, -1):
-                        if heikin_ashi_candles[j]['ha_close'] < heikin_ashi_candles[j]['ha_open']:
-                            # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
-                            if volume_oscillator[j] >= 0:
-                                return True
+    # 초기 조건 값 설정
+    ema9_crossed_below_ema18 = False
+    heikin_ashi_candles_below_ema9 = False
+
+    # 조건 1: 9EMA가 18EMA를 하향돌파한 시점 이후부터 검사
+    for i in range(-1, -len(ohlcv) - 1, -1):
+        if ema9[i] < ema18[i] and ema9[i - 1] >= ema18[i - 1]:
+            ema9_crossed_below_ema18 = True
+
+        if ema9_crossed_below_ema18:
+            # 조건 2: 하이킨 아시 캔들이 EMA선 아래로 내려와야 함 (음봉인 경우에만)
+            heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
+            if heikin_ashi_candles[i]['ha_close'] < ema9[i] and heikin_ashi_candles[i]['ha_close'] < heikin_ashi_candles[i]['ha_open']:
+                heikin_ashi_candles_below_ema9 = True
+                break  # 조건 충족 후 종료
+
+    # 조건 3: 9EMA가 18EMA 아래에 위치할 때 양봉이 EMA를 터치하고 음봉으로 하락해야 함
+    if ema9_crossed_below_ema18 and heikin_ashi_candles_below_ema9:
+        for i in range(-1, -len(ohlcv) - 1, -1):
+            if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]:
+                for j in range(i, -len(ohlcv) - 1, -1):
+                    if heikin_ashi_candles[j]['ha_close'] < heikin_ashi_candles[j]['ha_open']:
+                        # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
+                        if volume_oscillator[j] >= 0:
+                            return True
+
     return False
+
 
 # 포지션 종료 함수 정의 (업데이트)
 def close_position(symbol, ema18):
@@ -157,7 +193,7 @@ def close_position(symbol, ema18):
                 take_profit_price = entry_price + 2 * (entry_price - stop_loss_price)  # 목표가 설정
                 current_price = float(position['markPrice'])
                 quantity = abs(float(position['positionAmt']))
-                
+
                 if position['positionSide'] == 'LONG':
                     if current_price <= stop_loss_price or current_price >= take_profit_price:
                         place_sell_order(quantity)
@@ -172,6 +208,7 @@ def close_position(symbol, ema18):
         error_message = f"An error occurred while closing the position: {e}"
         send_to_telegram(error_message)
 
+
 # 텔레그램으로 메시지를 보내는 함수
 def send_to_telegram(message):
     try:
@@ -179,35 +216,43 @@ def send_to_telegram(message):
     except Exception as e:
         print(f"An error occurred while sending to Telegram: {e}")
 
+
+print("autotradestart")
 # 메인 루프
 while True:
     try:
         # OHLCV 데이터 가져오기
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe)
-        close_prices = np.array([candle[4] for candle in ohlcv])
-        
+        candles = exchange.fetch_ohlcv(
+            symbol=symbol,
+            timeframe=timeframe,
+            since=None,
+            limit=50
+        )
+
+        df = pd.DataFrame(data=candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+        close_prices = df['close'].astype(float)
         # 이동평균 계산
         ema9 = calculate_ema(close_prices, 9)
         ema18 = calculate_ema(close_prices, 18)
-        
+
         # 볼륨 오실레이터 계산
-        volume_oscillator = calculate_volume_oscillator([candle[5] for candle in ohlcv], 8, 21)
-        
+        volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
+
         # 메수 (롱) 진입 조건 확인
-        if should_enter_long(ohlcv, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity(symbol, leverage)
+        if should_enter_long(df.values, ema9, ema18, volume_oscillator):
+            quantity = calculate_quantity()
             if quantity:
                 place_buy_order(quantity)
-        
+
         # 메도 (숏) 진입 조건 확인
-        if should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity(symbol, leverage)
+        if should_enter_short(df.values, ema9, ema18, volume_oscillator):
+            quantity = calculate_quantity()
             if quantity:
                 place_sell_order(quantity)
-        
+
         # 포지션 종료 조건 확인
         close_position(symbol, ema18)
-        
+
     except Exception as e:
         error_message = f"An error occurred: {e}"
         send_to_telegram(error_message)
