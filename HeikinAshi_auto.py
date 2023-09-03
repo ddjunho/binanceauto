@@ -67,7 +67,14 @@ def calculate_heikin_ashi_candles(candles):
 # 매수 및 매도 주문 함수 정의
 def place_buy_order(quantity):
     try:
-        order = exchange.create_market_buy_order(symbol, quantity)
+        order = exchange.fapiPrivate_create_order(
+            symbol=symbol,
+            side='BUY',
+            type='MARKET',
+            quantity=quantity
+        )
+        message = f"Placed a BUY order for {quantity} {symbol} at market price."
+        send_to_telegram(message)
         return order
     except Exception as e:
         error_message = f"An error occurred while placing buy order: {e}"
@@ -76,7 +83,14 @@ def place_buy_order(quantity):
 
 def place_sell_order(quantity):
     try:
-        order = exchange.create_market_sell_order(symbol, quantity)
+        order = exchange.fapiPrivate_create_order(
+            symbol=symbol,
+            side='SELL',
+            type='MARKET',
+            quantity=quantity
+        )
+        message = f"Placed a SELL order for {quantity} {symbol} at market price."
+        send_to_telegram(message)
         return order
     except Exception as e:
         error_message = f"An error occurred while placing sell order: {e}"
@@ -132,10 +146,10 @@ def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
                                 return True
     return False
 
-# 포지션 종료 함수 정의
+# 포지션 종료 함수 정의 (업데이트)
 def close_position(symbol, ema18):
     try:
-        positions = exchange.fetch_positions()
+        positions = exchange.fapiPrivateV2_get_positionrisk()
         for position in positions:
             if position['symbol'] == symbol:
                 entry_price = float(position['entryPrice'])
