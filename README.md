@@ -1,1 +1,1 @@
-nohup python3 binanceautotrade.py > output.log &
+nohup python3 binanceauto.py > output.log &
