@@ -99,7 +99,7 @@ def place_sell_order(quantity):
 
 
 # 매매량 계산 함수 정의
-def calculate_quantity():
+def calculate_quantity(symbol):
     try:
         balance = exchange.fetch_balance(params={"type": "future"})
         total_balance = float(balance['total']['USDT'])
@@ -219,6 +219,7 @@ def send_to_telegram(message):
 
 print("autotradestart")
 # 메인 루프
+# 메인 루프
 while True:
     try:
         # OHLCV 데이터 가져오기
@@ -226,11 +227,15 @@ while True:
             symbol=symbol,
             timeframe=timeframe,
             since=None,
-            limit=50
+            limit=10
         )
 
         df = pd.DataFrame(data=candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
         close_prices = df['close'].astype(float)
+
+        # 히킨 아시 캔들 계산
+        heikin_ashi_candles = calculate_heikin_ashi_candles(candles)
+
         # 이동평균 계산
         ema9 = calculate_ema(close_prices, 9)
         ema18 = calculate_ema(close_prices, 18)
@@ -239,14 +244,14 @@ while True:
         volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
 
         # 메수 (롱) 진입 조건 확인
-        if should_enter_long(df.values, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity()
+        if should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+            quantity = calculate_quantity(symbol)
             if quantity:
                 place_buy_order(quantity)
 
         # 메도 (숏) 진입 조건 확인
-        if should_enter_short(df.values, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity()
+        if should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+            quantity = calculate_quantity(symbol)
             if quantity:
                 place_sell_order(quantity)
 
