@@ -121,28 +121,26 @@ def calculate_quantity(symbol):
         send_to_telegram(error_message)
         return None
 
-
 # 메수 (롱) 진입 조건 함수 정의
-def should_enter_long(ohlcv, ema9, ema18, volume_oscillator):
+def should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
     # 초기 조건 값 설정
     ema9_crossed_above_ema18 = False
     heikin_ashi_candles_above_ema9 = False
 
     # 조건 1: 9EMA가 18EMA를 상향돌파한 시점 이후부터 검사
-    for i in range(-1, -len(ohlcv) - 1, -1):
+    for i in range(-3, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
         if ema9[i] > ema18[i] and ema9[i - 1] <= ema18[i - 1]:
             ema9_crossed_above_ema18 = True
 
         if ema9_crossed_above_ema18:
             # 조건 2: 하이켄 아시 캔들이 EMA선 위로 올라와야 함 (양봉인 경우에만)
-            heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
             if heikin_ashi_candles[i]['ha_close'] > ema9[i] and heikin_ashi_candles[i]['ha_close'] > heikin_ashi_candles[i]['ha_open']:
                 heikin_ashi_candles_above_ema9 = True
                 break  # 조건 충족 후 종료
 
     # 조건 3: 9EMA가 18EMA 위에 위치할 때 음봉이 EMA를 터치하고 양봉으로 반등해야 함
     if ema9_crossed_above_ema18 and heikin_ashi_candles_above_ema9:
-        for i in range(-1, -len(ohlcv) - 1, -1):
+        for i in range(-2, -len(ohlcv) - 1, -1):  # 조건 3은 -2부터 시작
             if ema9[i] > ema18[i] and heikin_ashi_candles[i]['ha_close'] < ema9[i]:
                 for j in range(i, -len(ohlcv) - 1, -1):
                     if heikin_ashi_candles[j]['ha_close'] > heikin_ashi_candles[j]['ha_open']:
@@ -151,7 +149,6 @@ def should_enter_long(ohlcv, ema9, ema18, volume_oscillator):
                             return True
     return False
 
-
 # 메도 (숏) 진입 조건 함수 정의
 def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
     # 초기 조건 값 설정
@@ -159,27 +156,25 @@ def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
     heikin_ashi_candles_below_ema9 = False
 
     # 조건 1: 9EMA가 18EMA를 하향돌파한 시점 이후부터 검사
-    for i in range(-1, -len(ohlcv) - 1, -1):
+    for i in range(-3, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
         if ema9[i] < ema18[i] and ema9[i - 1] >= ema18[i - 1]:
             ema9_crossed_below_ema18 = True
 
         if ema9_crossed_below_ema18:
             # 조건 2: 하이킨 아시 캔들이 EMA선 아래로 내려와야 함 (음봉인 경우에만)
-            heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
             if heikin_ashi_candles[i]['ha_close'] < ema9[i] and heikin_ashi_candles[i]['ha_close'] < heikin_ashi_candles[i]['ha_open']:
                 heikin_ashi_candles_below_ema9 = True
                 break  # 조건 충족 후 종료
 
     # 조건 3: 9EMA가 18EMA 아래에 위치할 때 양봉이 EMA를 터치하고 음봉으로 하락해야 함
     if ema9_crossed_below_ema18 and heikin_ashi_candles_below_ema9:
-        for i in range(-1, -len(ohlcv) - 1, -1):
+        for i in range(-2, -len(ohlcv) - 1, -1):  # 조건 3은 -2부터 시작
             if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]:
                 for j in range(i, -len(ohlcv) - 1, -1):
                     if heikin_ashi_candles[j]['ha_close'] < heikin_ashi_candles[j]['ha_open']:
                         # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
                         if volume_oscillator[j] >= 0:
                             return True
-
     return False
 
 
@@ -219,7 +214,6 @@ def send_to_telegram(message):
 
 
 print("autotradestart")
-# 메인 루프
 # 메인 루프
 while True:
     try:
