@@ -206,33 +206,34 @@ def handle(msg):
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
-            bot.sendMessage(chat_id, 'Starting...')
+            send_to_telegram('Starting...')
             stop = False
         elif msg['text'] == '/stop':
-            bot.sendMessage(chat_id, 'Stopping...')
+            send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/set_Leverage':
-            bot.sendMessage(chat_id, f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
+            send_to_telegram(f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
         elif msg['text'] == '/Leverage_1':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 1
         elif msg['text'] == '/Leverage_5':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 5
         elif msg['text'] == '/Leverage_10':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 10
         elif msg['text'] == '/Leverage_20':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 20
         elif msg['text'] == '/Leverage_40':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 40
         elif msg['text'] == '/Leverage_60':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 60
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
+            send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
+
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
 
