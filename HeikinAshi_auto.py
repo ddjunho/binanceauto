@@ -114,7 +114,7 @@ def calculate_quantity(symbol):
         quantity = total_balance / btc_price
         
         # 소수점 이하 자리 제거
-        quantity = round(quantity, 0)
+        quantity = round(quantity, 4)
         
         return quantity
     except Exception as e:
@@ -133,11 +133,13 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
         heikin_ashi_condition = (df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])
         volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
+        num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
     else:
         ema_condition = ema9 < ema18
         heikin_ashi_condition = (df['ha_close'] < ema9) & (df['ha_close'] < df['ha_open'])
-        volume_oscillator_condition = volume_oscillator <= 5
+        volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
+        num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
 
     # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
     for i in range(-4, -len(ohlcv) - 1, -1):
@@ -153,19 +155,29 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     # 조건 3: EMA를 터치한 음봉 수 검사
     if ema9_crossed and heikin_ashi_candles_above_ema9:
         num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
+        num_consecutive_bullish_candles = 0  # 연속적인 양봉의 수를 세기 위한 변수
         for i in range(-2, -len(ohlcv) - 1, -1):
             if ema_condition[i] and not ema_condition[i - 1]:
                 num_consecutive_bearish_candles += 1
+                num_consecutive_bullish_candles += 1  # 양봉 수도 세기 시작
                 if num_consecutive_bearish_candles <= num_consecutive_bearish_limit:
                     for j in range(i, -len(ohlcv) - 1, -1):
                         if heikin_ashi_condition[j]:
-                            # 조건 4: 볼륨 오실레이터가 -5 이상/이하여야 함
+                            # 조건 4: 볼륨 오실레이터가 -5 이상
                             if volume_oscillator_condition[j]:
                                 return True
                         else:
                             num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
+                if num_consecutive_bullish_candles <= num_consecutive_bullish_limit:
+                    for j in range(i, -len(ohlcv) - 1, -1):
+                        if heikin_ashi_condition[j]:
+                            # 숏 포지션 진입 조건에서 양봉의 수 검사
+                            return False
+                        else:
+                            num_consecutive_bullish_candles = 0  # 음봉이 나오면 연속적인 양봉 수 초기화
 
     return False
+
 
 # 포지션 종료 함수 정의 (업데이트)
 def close_position(symbol, ema18):
