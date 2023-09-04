@@ -261,6 +261,7 @@ MessageLoop(bot, handle).run_as_thread()
 
 
 print("autotradestart")
+position_entered = False  # 포지션 진입 상태를 추적하는 변수
 # 메인 루프
 while True:
     try:
@@ -287,20 +288,23 @@ while True:
             # 볼륨 오실레이터 계산
             volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
 
-            # 메수 (롱) 진입 조건 확인
-            if should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
-                quantity = calculate_quantity(symbol)
-                if quantity:
-                    place_buy_order(quantity)
-
-            # 메도 (숏) 진입 조건 확인
-            if should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
-                quantity = calculate_quantity(symbol)
-                if quantity:
-                    place_sell_order(quantity)
+            if not position_entered:
+                # 메수 (롱) 진입 조건 확인
+                if should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+                    quantity = calculate_quantity(symbol)
+                    if quantity:
+                        place_buy_order(quantity)
+                        position_entered = True  # 포지션 진입 상태 업데이트
+                # 메도 (숏) 진입 조건 확인
+                elif should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+                    quantity = calculate_quantity(symbol)
+                    if quantity:
+                        place_sell_order(quantity)
+                        position_entered = True  # 포지션 진입 상태 업데이트
             pass
         # 포지션 종료 조건 확인
-        close_position(symbol, ema18)
+        if position_entered:
+            close_position(symbol, ema18)
 
     except Exception as e:
         error_message = f"An error occurred: {e}"
