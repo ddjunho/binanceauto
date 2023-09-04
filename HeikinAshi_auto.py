@@ -247,7 +247,7 @@ def handle(msg):
             leverage = 60
         elif msg['text'] == '/help':
             send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정\n/calculate_quantity - 잔고')
-        elif msg['text'] == '/Leverage_60':
+        elif msg['text'] == '/calculate_quantity':
             send_to_telegram(f'현재 잔고: {calculate_quantity(symbol)}')
             
 # 텔레그램 메시지 루프
