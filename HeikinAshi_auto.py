@@ -246,8 +246,10 @@ def handle(msg):
             send_to_telegram('Leverage setting complete!')
             leverage = 60
         elif msg['text'] == '/help':
-            send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
-
+            send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정\n/calculate_quantity - 잔고')
+        elif msg['text'] == '/Leverage_60':
+            send_to_telegram(f'현재 잔고: {calculate_quantity(symbol)}')
+            
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
 
@@ -270,8 +272,6 @@ while True:
             close_prices = df['close'].astype(float)
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             
-            # 히킨 아시 캔들 계산
-            heikin_ashi_candles = calculate_heikin_ashi_candles(df)
 
             # 이동평균 계산
             ema9 = calculate_ema(close_prices, 9)
