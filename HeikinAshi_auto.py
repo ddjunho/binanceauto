@@ -128,7 +128,7 @@ def should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
     heikin_ashi_candles_above_ema9 = False
 
     # 조건 1: 9EMA가 18EMA를 상향돌파한 시점 이후부터 검사
-    for i in range(-3, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
+    for i in range(-4, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
         if ema9[i] > ema18[i] and ema9[i - 1] <= ema18[i - 1]:
             ema9_crossed_above_ema18 = True
 
@@ -150,13 +150,13 @@ def should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
     return False
 
 # 메도 (숏) 진입 조건 함수 정의
-def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
+def should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
     # 초기 조건 값 설정
     ema9_crossed_below_ema18 = False
     heikin_ashi_candles_below_ema9 = False
 
     # 조건 1: 9EMA가 18EMA를 하향돌파한 시점 이후부터 검사
-    for i in range(-3, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
+    for i in range(-4, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
         if ema9[i] < ema18[i] and ema9[i - 1] >= ema18[i - 1]:
             ema9_crossed_below_ema18 = True
 
