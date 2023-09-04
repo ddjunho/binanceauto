@@ -182,6 +182,7 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
 
 # 포지션 종료 함수 정의 (업데이트)
 def close_position(symbol, ema18):
+    global position_entered
     try:
         positions = exchange.fapiPrivateV2_get_positionrisk()
         for position in positions:
@@ -197,11 +198,13 @@ def close_position(symbol, ema18):
                         place_sell_order(quantity)
                         message = f"Closed long position of {quantity} {symbol} at market price."
                         send_to_telegram(message)
+                        position_entered = False
                 elif position['positionSide'] == 'SHORT':
                     if current_price >= stop_loss_price or current_price <= take_profit_price:
                         place_buy_order(quantity)
                         message = f"Closed short position of {quantity} {symbol} at market price."
                         send_to_telegram(message)
+                        position_entered = False
     except Exception as e:
         error_message = f"An error occurred while closing the position: {e}"
         send_to_telegram(error_message)
