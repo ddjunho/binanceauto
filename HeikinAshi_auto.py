@@ -182,7 +182,7 @@ def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
     if ema9_crossed_below_ema18 and heikin_ashi_candles_below_ema9:
         num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
         for i in range(-2, -len(ohlcv) - 1, -1):  # 조건 3은 -2부터 시작
-            if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]ema9[i] and abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) > (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
+            if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i] and abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) > (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
                 num_consecutive_bearish_candles += 1
                 if num_consecutive_bearish_candles <= 2:
                     for j in range(i, -len(ohlcv) - 1, -1):
