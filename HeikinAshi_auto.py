@@ -130,13 +130,14 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     # 진입 방향에 따른 조건 설정
     if is_long:
         ema_condition = ema9 > ema18
-        heikin_ashi_condition = (df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])
+        heikin_ashi_condition = ((df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])) | (abs(df['ha_open'] - df['ha_close']) / (df['ha_high'] - df['ha_low']) < 0.3)
+
         volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
         num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
     else:
         ema_condition = ema9 < ema18
-        heikin_ashi_condition = (df['ha_close'] < ema9) & (df['ha_close'] < df['ha_open'])
+        heikin_ashi_condition = ((df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])) | (abs(df['ha_open'] - df['ha_close']) / (df['ha_high'] - df['ha_low']) < 0.3)
         volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
         num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
