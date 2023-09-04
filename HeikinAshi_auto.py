@@ -121,62 +121,81 @@ def calculate_quantity(symbol):
         error_message = f"An error occurred while calculating the quantity: {e}"
         send_to_telegram(error_message)
         return None
-    
-def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
+        
+#메수 (롱) 진입 조건 함수 정의
+def should_enter_long(ohlcv, ema9, ema18, volume_oscillator):
     # 초기 조건 값 설정
-    ema9_crossed = False
+    ema9_crossed_above_ema18 = False
     heikin_ashi_candles_above_ema9 = False
-    df = calculate_heikin_ashi_candles(ohlcv)
-    # 진입 방향에 따른 조건 설정
-    if is_long:
-        ema_condition = ema9 > ema18
-        heikin_ashi_condition = ((df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])) | (abs(df['ha_open'] - df['ha_close']) / (df['ha_high'] - df['ha_low']) < 0.3)
+    heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
+    
+    # 조건 1: 9EMA가 18EMA를 상향돌파한 시점 이후부터 검사
+    for i in range(-4, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
+        if ema9[i] > ema18[i] and ema9[i - 1] <= ema18[i - 1]:
+            ema9_crossed_above_ema18 = True
 
-        volume_oscillator_condition = volume_oscillator >= -5
-        num_consecutive_bearish_limit = 2
-        num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
-    else:
-        ema_condition = ema9 < ema18
-        heikin_ashi_condition = ((df['ha_close'] < ema9) & (df['ha_close'] < df['ha_open'])) | (abs(df['ha_open'] - df['ha_close']) / (df['ha_high'] - df['ha_low']) < 0.3) 
-        volume_oscillator_condition = volume_oscillator >= -5
-        num_consecutive_bearish_limit = 2
-        num_consecutive_bullish_limit = 2  # 숏 포지션 진입 조건에서 양봉의 수 제한 추가
-
-    # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
-    for i in range(-4, -len(ohlcv) - 1, -1):
-        if ema_condition:
-            ema9_crossed = True
-
-        if ema9_crossed:
-            # 조건 2: 하이켄 아시 캔들이 EMA선 위/아래로 이동 (양봉/음봉인 경우에만)
-            if heikin_ashi_condition:
+        if ema9_crossed_above_ema18:
+            # 조건 2: 하이켄 아시 캔들이 EMA선 위로 올라와야 함 (양봉인 경우에만)
+            if heikin_ashi_candles[i]['ha_close'] > ema9[i] and heikin_ashi_candles[i]['ha_close'] > heikin_ashi_candles[i]['ha_open']:
                 heikin_ashi_candles_above_ema9 = True
                 break  # 조건 충족 후 종료
 
-    # 조건 3: EMA를 터치한 음봉 수 검사
-    if ema9_crossed and heikin_ashi_candles_above_ema9:
+    # 조건 3: 9EMA가 18EMA 위에 위치할 때 2개 이하의 음봉이 EMA를 터치하고 양봉으로 반등하거나 도지 모양이어야 함
+    if ema9_crossed_above_ema18 and heikin_ashi_candles_above_ema9:
         num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
-        num_consecutive_bullish_candles = 0  # 연속적인 양봉의 수를 세기 위한 변수
-        for i in range(-2, -len(ohlcv) - 1, -1):
-            if ema_condition[i] and not ema_condition[i - 1]:
+        for i in range(-2, -len(ohlcv) - 1, -1):  # 조건 3은 -2부터 시작
+            if ema9[i] > ema18[i] and heikin_ashi_candles[i]['ha_close'] < ema9[i] and abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) > (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
                 num_consecutive_bearish_candles += 1
-                num_consecutive_bullish_candles += 1  # 양봉 수도 세기 시작
-                if num_consecutive_bearish_candles <= num_consecutive_bearish_limit:
+                if num_consecutive_bearish_candles <= 2:
                     for j in range(i, -len(ohlcv) - 1, -1):
-                        if heikin_ashi_condition[j]:
-                            # 조건 4: 볼륨 오실레이터가 -5 이상
-                            if volume_oscillator_condition[j]:
+                        if heikin_ashi_candles[j]['ha_close'] > heikin_ashi_candles[j]['ha_open']:
+                            # 조건 4: 볼륨 오실레이터가 -5 이상이여야 함
+                            if volume_oscillator[j] >= -5:
                                 return True
-                        else:
-                            num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
-                if num_consecutive_bullish_candles <= num_consecutive_bullish_limit:
-                    for j in range(i, -len(ohlcv) - 1, -1):
-                        if heikin_ashi_condition[j]:
-                            if volume_oscillator_condition[j]:
+                        elif abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) <= (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
+                            # 도지 모양인 경우
+                            if volume_oscillator[j] >= -5:
                                 return True
-                        else:
-                            num_consecutive_bullish_candles = 0  # 음봉이 나오면 연속적인 양봉 수 초기화
+                else:
+                    num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
+    return False
 
+# 메도 (숏) 진입 조건 함수 정의
+def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
+    # 초기 조건 값 설정
+    ema9_crossed_below_ema18 = False
+    heikin_ashi_candles_below_ema9 = False
+    heikin_ashi_candles = calculate_heikin_ashi_candles(ohlcv)
+    
+    # 조건 1: 9EMA가 18EMA를 하향돌파한 시점 이후부터 검사
+    for i in range(-4, -len(ohlcv) - 1, -1):  # 조건 1은 -3부터 시작
+        if ema9[i] < ema18[i] and ema9[i - 1] >= ema18[i - 1]:
+            ema9_crossed_below_ema18 = True
+
+        if ema9_crossed_below_ema18:
+            # 조건 2: 하이킨 아시 캔들이 EMA선 아래로 내려와야 함 (음봉인 경우에만)
+            if heikin_ashi_candles[i]['ha_close'] < ema9[i] and heikin_ashi_candles[i]['ha_close'] < heikin_ashi_candles[i]['ha_open']:
+                heikin_ashi_candles_below_ema9 = True
+                break  # 조건 충족 후 종료
+
+    # 조건 3: 9EMA가 18EMA 아래에 위치할 때 2개 이하의 음봉이 EMA를 터치하고 양봉으로 반등해야 함
+    if ema9_crossed_below_ema18 and heikin_ashi_candles_below_ema9:
+        num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
+        for i in range(-2, -len(ohlcv) - 1, -1):  # 조건 3은 -2부터 시작
+            if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]ema9[i] and abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) > (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
+                num_consecutive_bearish_candles += 1
+                if num_consecutive_bearish_candles <= 2:
+                    for j in range(i, -len(ohlcv) - 1, -1):
+                        if heikin_ashi_candles[j]['ha_close'] < heikin_ashi_candles[j]['ha_open']:
+                            # 조건 4: 볼륨 오실레이터가 -5 이상이여야 함
+                            if volume_oscillator[j] >= -5:
+                                return True
+                        elif abs(heikin_ashi_candles[j]['ha_open'] - heikin_ashi_candles[j]['ha_close']) <= (heikin_ashi_candles[j]['ha_high'] - heikin_ashi_candles[j]['ha_low']) * 0.3:
+                            # 도지 모양인 경우
+                            if volume_oscillator[j] >= -5:
+                                return True    
+               else:
+                    num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
     return False
 
 
@@ -285,10 +304,10 @@ while True:
             volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 5, 10)
             
             # 메수 (롱) 진입 조건
-            long_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=True)
+            long_entry_condition = should_enter_long(df, ema9, ema18, volume_oscillator)
             
             # 메도 (숏) 진입 조건
-            short_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=False)
+            short_entry_condition = should_enter_short(df, ema9, ema18, volume_oscillator)
 
             if not position_entered:
                 # 메수 (롱) 진입 조건 확인
