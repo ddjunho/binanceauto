@@ -212,44 +212,83 @@ def send_to_telegram(message):
     except Exception as e:
         print(f"An error occurred while sending to Telegram: {e}")
 
+stop = False
+def handle(msg):
+    global stop
+    global Leverage
+    content_type, chat_type, chat_id = telepot.glance(msg)
+    if content_type == 'text':
+        if msg['text'] == '/start':
+            bot.sendMessage(chat_id, 'Starting...')
+            stop = False
+        elif msg['text'] == '/stop':
+            bot.sendMessage(chat_id, 'Stopping...')
+            stop = True
+        elif msg['text'] == '/set_Leverage':
+            bot.sendMessage(chat_id, f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
+        elif msg['text'] == '/Leverage_1':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 1
+        elif msg['text'] == '/Leverage_5':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 5
+        elif msg['text'] == '/Leverage_10':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 10
+        elif msg['text'] == '/Leverage_20':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 20
+        elif msg['text'] == '/Leverage_40':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 40
+        elif msg['text'] == '/Leverage_60':
+            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            Leverage = 60
+        elif msg['text'] == '/help':
+            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
+# 텔레그램 메시지 루프
+MessageLoop(bot, handle).run_as_thread()
+
 
 print("autotradestart")
 # 메인 루프
 while True:
     try:
-        # OHLCV 데이터 가져오기
-        candles = exchange.fetch_ohlcv(
-            symbol=symbol,
-            timeframe=timeframe,
-            since=None,
-            limit=1
-        )
+        if not stop:
+            # OHLCV 데이터 가져오기
+            candles = exchange.fetch_ohlcv(
+                symbol=symbol,
+                timeframe=timeframe,
+                since=None,
+                limit=1
+            )
 
-        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        close_prices = df['close'].astype(float)
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        # 히킨 아시 캔들 계산
-        heikin_ashi_candles = calculate_heikin_ashi_candles(df)
+            df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            close_prices = df['close'].astype(float)
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+            # 히킨 아시 캔들 계산
+            heikin_ashi_candles = calculate_heikin_ashi_candles(df)
 
-        # 이동평균 계산
-        ema9 = calculate_ema(close_prices, 9)
-        ema18 = calculate_ema(close_prices, 18)
+            # 이동평균 계산
+            ema9 = calculate_ema(close_prices, 9)
+            ema18 = calculate_ema(close_prices, 18)
 
-        # 볼륨 오실레이터 계산
-        volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
+            # 볼륨 오실레이터 계산
+            volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
 
-        # 메수 (롱) 진입 조건 확인
-        if should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity(symbol)
-            if quantity:
-                place_buy_order(quantity)
+            # 메수 (롱) 진입 조건 확인
+            if should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+                quantity = calculate_quantity(symbol)
+                if quantity:
+                    place_buy_order(quantity)
 
-        # 메도 (숏) 진입 조건 확인
-        if should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
-            quantity = calculate_quantity(symbol)
-            if quantity:
-                place_sell_order(quantity)
-
+            # 메도 (숏) 진입 조건 확인
+            if should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
+                quantity = calculate_quantity(symbol)
+                if quantity:
+                    place_sell_order(quantity)
+            pass
         # 포지션 종료 조건 확인
         close_position(symbol, ema18)
 
