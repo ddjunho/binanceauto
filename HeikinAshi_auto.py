@@ -303,7 +303,6 @@ while True:
                     if quantity:
                         place_sell_order(quantity)
                         position_entered = True  # 포지션 진입 상태 업데이트
-            pass
         # 포지션 종료 조건 확인
         if position_entered:
             close_position(symbol, ema18)
