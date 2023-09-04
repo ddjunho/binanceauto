@@ -226,7 +226,7 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/set_Leverage':
-            send_to_telegram(f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
+            send_to_telegram(f'현재 레버리지: {leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
         elif msg['text'] == '/Leverage_1':
             send_to_telegram('Leverage setting complete!')
             leverage = 1
