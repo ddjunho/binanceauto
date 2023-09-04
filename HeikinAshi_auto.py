@@ -73,8 +73,6 @@ def calculate_heikin_ashi_candles(df):
         heikin_ashi_df = pd.DataFrame(heikin_ashi_candles)
     return heikin_ashi_df
 
-
-
 # 매수 및 매도 주문 함수 정의
 def place_buy_order(quantity):
     try:
@@ -86,7 +84,6 @@ def place_buy_order(quantity):
         error_message = f"An error occurred while placing buy order: {e}"
         send_to_telegram(error_message)
         return None
-
 
 def place_sell_order(quantity):
     try:
@@ -109,9 +106,8 @@ def calculate_quantity(symbol):
         # 현재 BTCUSDT 가격 조회
         ticker = exchange.fetch_ticker(symbol)
         btc_price = float(ticker['last'])
-        
         # USDT 잔고를 BTC로 환산
-        quantity = total_balance*leverage / btc_price - 0.001
+        quantity = total_balance / btc_price
         
         # 소수점 이하 자리 제거
         quantity = round(quantity, 4)
@@ -295,7 +291,6 @@ while True:
             close_prices = df['close'].astype(float)
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             
-
             # 이동평균 계산
             ema9 = calculate_ema(close_prices, 9)
             ema18 = calculate_ema(close_prices, 18)
@@ -308,7 +303,6 @@ while True:
             
             # 메도 (숏) 진입 조건
             short_entry_condition = should_enter_short(df, ema9, ema18, volume_oscillator)
-
             if not position_entered:
                 # 메수 (롱) 진입 조건 확인
                 if long_entry_condition:
@@ -322,9 +316,9 @@ while True:
                     if quantity:
                         place_sell_order(quantity)
                         position_entered = True  # 포지션 진입 상태 업데이트
-        # 포지션 종료 조건 확인
-        if position_entered:
-            close_position(symbol, ema18)
+            # 포지션 종료 조건 확인
+            if position_entered:
+                close_position(symbol, ema18)
 
     except Exception as e:
         error_message = f"An error occurred: {e}"
