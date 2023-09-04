@@ -120,20 +120,21 @@ def calculate_quantity(symbol):
         error_message = f"An error occurred while calculating the quantity: {e}"
         send_to_telegram(error_message)
         return None
+
 def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     # 초기 조건 값 설정
     ema9_crossed = False
     heikin_ashi_candles_above_ema9 = False
-
+    df = calculate_heikin_ashi_candles(ohlcv)
     # 진입 방향에 따른 조건 설정
     if is_long:
         ema_condition = ema9 > ema18
-        heikin_ashi_condition = ohlcv['ha_close'] > ema9 & ohlcv['ha_close'] > ohlcv['ha_open']
+        heikin_ashi_condition = df['ha_close'] > ema9 & df['ha_close'] > df['ha_open']
         volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
     else:
         ema_condition = ema9 < ema18
-        heikin_ashi_condition = ohlcv['ha_close'] < ema9 & ohlcv['ha_close'] < ohlcv['ha_open']
+        heikin_ashi_condition = df['ha_close'] < ema9 & df['ha_close'] < df['ha_open']
         volume_oscillator_condition = volume_oscillator <= 5
         num_consecutive_bearish_limit = 2
 
@@ -164,6 +165,7 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
                             num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
 
     return False
+
 
 # 포지션 종료 함수 정의 (업데이트)
 def close_position(symbol, ema18):
@@ -273,7 +275,7 @@ try:
         print(volume_oscillator)
         print(place_sell_order(0.001))
         # 메수 (롱) 진입 조건
-        long_entry_condition = should_enter_position(heikin_ashi_candles, ema9, ema18, volume_oscillator, is_long=True)
+        long_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=True)
         if long_entry_condition:
             quantity = calculate_quantity(symbol)
             if quantity:
@@ -281,7 +283,7 @@ try:
                 print(close_position(symbol, ema18))
 
         # 메도 (숏) 진입 조건
-        short_entry_condition = should_enter_position(heikin_ashi_candles, ema9, ema18, volume_oscillator, is_long=False)
+        short_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=False)
         if short_entry_condition:
             quantity = calculate_quantity(symbol)
             if quantity:
