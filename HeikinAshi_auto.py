@@ -264,7 +264,7 @@ while True:
             ema18 = calculate_ema(close_prices, 18)
 
             # 볼륨 오실레이터 계산
-            volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 8, 21)
+            volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 5, 10)
             
             # 메수 (롱) 진입 조건
             long_entry_condition = should_enter_position(heikin_ashi_candles, ema9, ema18, volume_oscillator, is_long=True)
