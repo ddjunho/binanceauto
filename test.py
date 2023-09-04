@@ -129,13 +129,14 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     # 진입 방향에 따른 조건 설정
     if is_long:
         ema_condition = ema9 > ema18
-        heikin_ashi_condition = df['ha_close'] > ema9 & df['ha_close'] > df['ha_open']
+        heikin_ashi_condition = (df['ha_close'] > ema9) & (df['ha_close'] > df['ha_open'])
         volume_oscillator_condition = volume_oscillator >= -5
         num_consecutive_bearish_limit = 2
     else:
         ema_condition = ema9 < ema18
-        heikin_ashi_condition = df['ha_close'] < ema9 & df['ha_close'] < df['ha_open']
+        heikin_ashi_condition = (df['ha_close'] < ema9) & (df['ha_close'] < df['ha_open'])
         volume_oscillator_condition = volume_oscillator <= 5
+      
         num_consecutive_bearish_limit = 2
 
     # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
