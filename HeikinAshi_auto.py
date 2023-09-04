@@ -111,7 +111,7 @@ def calculate_quantity(symbol):
         btc_price = float(ticker['last'])
         
         # USDT 잔고를 BTC로 환산
-        quantity = total_balance / btc_price
+        quantity = total_balance*leverage / btc_price - 0.001
         
         # 소수점 이하 자리 제거
         quantity = round(quantity, 4)
@@ -194,7 +194,7 @@ def should_enter_short(ohlcv, ema9, ema18, volume_oscillator):
                             # 도지 모양인 경우
                             if volume_oscillator[j] >= -5:
                                 return True    
-               else:
+                else:
                     num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
     return False
 
