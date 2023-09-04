@@ -216,7 +216,7 @@ def send_to_telegram(message):
 stop = False
 def handle(msg):
     global stop
-    global Leverage
+    global leverage
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
@@ -229,22 +229,22 @@ def handle(msg):
             send_to_telegram(f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
         elif msg['text'] == '/Leverage_1':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 1
+            leverage = 1
         elif msg['text'] == '/Leverage_5':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 5
+            leverage = 5
         elif msg['text'] == '/Leverage_10':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 10
+            leverage = 10
         elif msg['text'] == '/Leverage_20':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 20
+            leverage = 20
         elif msg['text'] == '/Leverage_40':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 40
+            leverage = 40
         elif msg['text'] == '/Leverage_60':
             send_to_telegram('Leverage setting complete!')
-            Leverage = 60
+            leverage = 60
         elif msg['text'] == '/help':
             send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
 
