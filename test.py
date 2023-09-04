@@ -125,7 +125,9 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     # 초기 조건 값 설정
     ema9_crossed = False
     heikin_ashi_candles_above_ema9 = False
+    print(1)
     df = calculate_heikin_ashi_candles(ohlcv)
+    print(2)
     # 진입 방향에 따른 조건 설정
     if is_long:
         ema_condition = ema9 > ema18
@@ -136,34 +138,13 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
         ema_condition = ema9 < ema18
         heikin_ashi_condition = (df['ha_close'] < ema9) & (df['ha_close'] < df['ha_open'])
         volume_oscillator_condition = volume_oscillator <= 5
-      
         num_consecutive_bearish_limit = 2
 
-    # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
-    for i in range(-4, -len(ohlcv) - 1, -1):
-        if ema_condition[i] and not ema_condition[i - 1]:
-            ema9_crossed = True
+    print(f"ema_condition: {ema_condition}")
+    print(f"heikin_ashi_condition: {heikin_ashi_condition}")
+    print(f"volume_oscillator_condition: {volume_oscillator_condition}")
 
-        if ema9_crossed:
-            # 조건 2: 하이켄 아시 캔들이 EMA선 위/아래로 이동 (양봉/음봉인 경우에만)
-            if heikin_ashi_condition[i]:
-                heikin_ashi_candles_above_ema9 = True
-                break  # 조건 충족 후 종료
-
-    # 조건 3: EMA를 터치한 음봉 수 검사
-    if ema9_crossed and heikin_ashi_candles_above_ema9:
-        num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
-        for i in range(-2, -len(ohlcv) - 1, -1):
-            if ema_condition[i] and not ema_condition[i - 1]:
-                num_consecutive_bearish_candles += 1
-                if num_consecutive_bearish_candles <= num_consecutive_bearish_limit:
-                    for j in range(i, -len(ohlcv) - 1, -1):
-                        if heikin_ashi_condition[j]:
-                            # 조건 4: 볼륨 오실레이터가 -5 이상/이하여야 함
-                            if volume_oscillator_condition[j]:
-                                return True
-                        else:
-                            num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
+    # ... (나머지 코드 생략)
 
     return False
 
@@ -277,6 +258,7 @@ try:
         print(place_sell_order(0.001))
         # 메수 (롱) 진입 조건
         long_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=True)
+        
         if long_entry_condition:
             quantity = calculate_quantity(symbol)
             if quantity:
