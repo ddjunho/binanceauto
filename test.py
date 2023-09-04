@@ -70,7 +70,8 @@ def calculate_heikin_ashi_candles(df):
             'ha_low': ha_low,
             'ha_close': ha_close,
         })
-    return heikin_ashi_candles
+        heikin_ashi_df = pd.DataFrame(heikin_ashi_candles)
+    return heikin_ashi_df
 
 
 
@@ -113,7 +114,7 @@ def calculate_quantity(symbol):
         quantity = total_balance / btc_price
         
         # 소수점 이하 자리 제거
-        quantity = round(quantity, 0)
+        quantity = round(quantity, 3)
         
         return quantity
     except Exception as e:
@@ -128,6 +129,11 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
     print(1)
     df = calculate_heikin_ashi_candles(ohlcv)
     print(2)
+    print(ema9)
+    print(ema18)
+    print(df['ha_close'])
+    print(ema9)
+    print(df['ha_close'] > ema9)
     # 진입 방향에 따른 조건 설정
     if is_long:
         ema_condition = ema9 > ema18
@@ -245,7 +251,7 @@ try:
         # 히킨 아시 캔들 계산
         heikin_ashi_candles = calculate_heikin_ashi_candles(df)
         print(heikin_ashi_candles)
-
+    
         # 이동평균 계산
         ema9 = calculate_ema(close_prices, 9)
         ema18 = calculate_ema(close_prices, 18)
@@ -253,8 +259,10 @@ try:
         print(ema18)
 
         # 볼륨 오실레이터 계산
-        volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 5, 10)
+        volume_oscillator = calculate_volume_oscillator(df['volume'].astype(int), 5, 10)
         print(volume_oscillator)
+        print(calculate_quantity(symbol))
+        print(heikin_ashi_candles['ha_close'])
         print(place_sell_order(0.001))
         # 메수 (롱) 진입 조건
         long_entry_condition = should_enter_position(df, ema9, ema18, volume_oscillator, is_long=True)
