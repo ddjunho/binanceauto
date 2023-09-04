@@ -266,7 +266,7 @@ while True:
                 symbol=symbol,
                 timeframe=timeframe,
                 since=None,
-                limit=1
+                limit=50
             )
 
             df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
