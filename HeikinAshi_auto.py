@@ -172,8 +172,8 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
                 if num_consecutive_bullish_candles <= num_consecutive_bullish_limit:
                     for j in range(i, -len(ohlcv) - 1, -1):
                         if heikin_ashi_condition[j]:
-                            # 숏 포지션 진입 조건에서 양봉의 수 검사
-                            return False
+                            if volume_oscillator_condition[j]:
+                                return True
                         else:
                             num_consecutive_bullish_candles = 0  # 음봉이 나오면 연속적인 양봉 수 초기화
 
