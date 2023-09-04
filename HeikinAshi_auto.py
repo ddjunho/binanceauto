@@ -144,12 +144,12 @@ def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
 
     # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
     for i in range(-4, -len(ohlcv) - 1, -1):
-        if ema_condition[i] and not ema_condition[i - 1]:
+        if ema_condition:
             ema9_crossed = True
 
         if ema9_crossed:
             # 조건 2: 하이켄 아시 캔들이 EMA선 위/아래로 이동 (양봉/음봉인 경우에만)
-            if heikin_ashi_condition[i]:
+            if heikin_ashi_condition:
                 heikin_ashi_candles_above_ema9 = True
                 break  # 조건 충족 후 종료
 
