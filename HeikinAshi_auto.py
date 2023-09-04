@@ -144,8 +144,8 @@ def should_enter_long(heikin_ashi_candles, ema9, ema18, volume_oscillator):
             if ema9[i] > ema18[i] and heikin_ashi_candles[i]['ha_close'] < ema9[i]:
                 for j in range(i, -len(ohlcv) - 1, -1):
                     if heikin_ashi_candles[j]['ha_close'] > heikin_ashi_candles[j]['ha_open']:
-                        # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
-                        if volume_oscillator[j] >= 0:
+                        # 조건 4: 볼륨 오실레이터가 -5 이상이여야 함
+                        if volume_oscillator[j] >= -5:
                             return True
     return False
 
@@ -172,8 +172,8 @@ def should_enter_short(heikin_ashi_candles, ema9, ema18, volume_oscillator):
             if ema9[i] < ema18[i] and heikin_ashi_candles[i]['ha_close'] > ema9[i]:
                 for j in range(i, -len(ohlcv) - 1, -1):
                     if heikin_ashi_candles[j]['ha_close'] < heikin_ashi_candles[j]['ha_open']:
-                        # 조건 4: 볼륨 오실레이터가 0 이상이여야 함
-                        if volume_oscillator[j] >= 0:
+                        # 조건 4: 볼륨 오실레이터가 -5 이상이여야 함
+                        if volume_oscillator[j] >= -5:
                             return True
     return False
 
