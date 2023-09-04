@@ -1,293 +1,293 @@
-import math
-import time
-import datetime
-import json
-import pandas as pd
+import ccxt
 import numpy as np
-import schedule
+import pandas as pd
 import telepot
-import tensorflow as tf
-import requests.exceptions
-import simplejson.errors
-from binance.client import Client
-from binance.exceptions import BinanceAPIException
-from datetime import datetime
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from tensorflow.keras import regularizers
-from binance_keys import api_key, api_secret
 from telepot.loop import MessageLoop
-tf.config.run_functions_eagerly(True)
 
-# 로그인
-client = Client(api_key, api_secret)
-COIN = "BTCUSDT" #코인명
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
+chat_id = "5820794752"
 
-def get_balance(ticker):
-    # 선물 거래 계좌 잔고 조회
+# Binance API 설정
+from binance_keys import api_key, api_secret
+
+exchange = ccxt.binance(config={
+    'rateLimit': 1000,
+    'enableRateLimit': True,
+    'apiKey': api_key,
+    'secret': api_secret,
+    'options': {
+        'defaultType': 'future'
+    }
+})
+
+# 트레이딩 페어 및 타임프레임 설정
+symbol = 'BTCUSDT'
+timeframe = '5m'
+
+# 레버리지 설정
+leverage = 10
+exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage})
+
+
+# 이동평균 계산 함수 정의
+def calculate_ema(data, period):
+    ema = []
+    alpha = 2 / (period + 1)
+    for i, price in enumerate(data):
+        if i == 0:
+            ema.append(price)
+        else:
+            ema.append(alpha * price + (1 - alpha) * ema[-1])
+    return ema
+
+
+# 볼륨 오실레이터 계산 함수 정의
+def calculate_volume_oscillator(data, short_period, long_period):
+    short_ema = calculate_ema(data, short_period)
+    long_ema = calculate_ema(data, long_period)
+    oscillator = np.array(short_ema) - np.array(long_ema)
+    return oscillator
+
+
+# 히킨 아시 캔들 계산 함수 정의
+def calculate_heikin_ashi_candles(df):
+    heikin_ashi_candles = []
+    for index, row in df.iterrows():
+        timestamp, open_price, high, low, close, volume = row
+        if len(heikin_ashi_candles) == 0:
+            ha_close = (open_price + high + low + close) / 4
+            ha_open = open_price
+        else:
+            ha_close = (open_price + high + low + close) / 4
+            ha_open = (heikin_ashi_candles[-1]['ha_open'] + heikin_ashi_candles[-1]['ha_close']) / 2
+        ha_high = max(high, ha_open, ha_close)
+        ha_low = min(low, ha_open, ha_close)
+
+        heikin_ashi_candles.append({
+            'timestamp': timestamp,
+            'ha_open': ha_open,
+            'ha_high': ha_high,
+            'ha_low': ha_low,
+            'ha_close': ha_close,
+        })
+    return heikin_ashi_candles
+
+
+
+# 매수 및 매도 주문 함수 정의
+def place_buy_order(quantity):
     try:
-        # Get futures account information
-        info = client.futures_account()
-        # Get balances
-        balances = info['assets']
-        # Find balance for given ticker
-        for balance in balances:
-            if balance['asset'] == ticker:
-                return float(balance['availableBalance'])
-        # If ticker not found, return 0
-        return 0
-    except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
-        print(f"에러 발생: {e}")
-    return 0
-def get_position(ticker):
-    # 선물 거래 계좌 포지션 조회
-    try:
-        # Get futures account information
-        info = client.futures_account()
-        # Get positions
-        positions = info['positions']
-        # Find position for given ticker
-        for position in positions:
-            if position['symbol'] == ticker:
-                return float(position['positionAmt'])
-        # If ticker not found, return 0
-        return 0
-    except (requests.exceptions.RequestException, simplejson.errors.JSONDecodeError) as e:
-        print(f"에러 발생: {e}")
-    return 0
-def get_current_price(ticker):
-    # 현재가 조회
-    try:
-        return float(client.futures_symbol_ticker(symbol=ticker)['price'])
+        order = exchange.create_market_buy_order(symbol, quantity)
+        message = f"Placed a BUY order for {quantity} {symbol} at market price."
+        send_to_telegram(message)
+        return order
     except Exception as e:
-        print(e)
-def predict_target_price(ticker, target_type):
-    # 데이터 불러오기
-    candles = client.futures_klines(symbol=ticker, interval='4h', limit=1000)
-    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    # 입력 데이터 전처리
-    df = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-    X = df[['open', 'high', 'low', 'close', 'volume']].values
-    X_scaler = StandardScaler()
-    X = X_scaler.fit_transform(X)
-    # 출력 데이터 전처리
-    y = df[target_type].values
-    y_scaler = StandardScaler()
-    y = y_scaler.fit_transform(y.reshape((-1, 1)))
-    # 학습 데이터 생성
-    X_train = []
-    y_train = []
-    data=999
-    for i in range(data, len(X)):
-        X_train.append(X[i - data:i, :])
-        y_train.append(y[i, 0])
-    X_train = np.array(X_train)
-    y_train = np.array(y_train)
-    # Tensorflow 모델 구성
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.LSTM(128, input_shape=(data, 5)),
-        tf.keras.layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(16, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=regularizers.l2(0.005)),
-        tf.keras.layers.Dense(1)
-    ])
-    # 모델 컴파일
-    model.compile(optimizer='adam', loss='mse', run_eagerly=True)
-    # 학습
-    model.fit(X_train, y_train, epochs=1, verbose=1)
-    # 새로운 데이터에 대한 예측
-    last_data = df[['open', 'high', 'low', 'close', 'volume']].iloc[-data:].values
-    last_data_mean = last_data.mean(axis=0)
-    last_data_std = last_data.std(axis=0)
-    last_data = (last_data - last_data_mean) / last_data_std
-    # 예측할 데이터의 shape를 (1,999, values)로 변경
-    last_data = np.expand_dims(last_data, axis=0)
-    predicted_price = model.predict(last_data)
-    predicted_price = y_scaler.inverse_transform(predicted_price)
-    predicted_price = predicted_price.flatten()[0]  # 이중 리스트를 일차원으로 변경하고 첫 번째 원소를 선택
-    return float(predicted_price)
+        error_message = f"An error occurred while placing buy order: {e}"
+        send_to_telegram(error_message)
+        return None
 
-def is_bull_market(ticker, time):
-    candles = client.futures_klines(symbol=ticker, interval=time, limit=1000)
-    df = pd.DataFrame(candles, columns=['open_time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'trades', 'taker_buy_base', 'taker_buy_quote', 'ignored'])
-    DF = df.astype({'open' : 'float', 'high' : 'float', 'low' : 'float', 'close' : 'float', 'volume' : 'float'})
-    # 기술적 지표 추가
-    DF['ma5'] = DF['close'].rolling(window=5).mean()
-    DF['ma10'] = DF['close'].rolling(window=10).mean()
-    DF['ma20'] = DF['close'].rolling(window=20).mean()
-    DF['ma60'] = DF['close'].rolling(window=60).mean()
-    DF['ma120'] = DF['close'].rolling(window=120).mean()
-    # RSI 계산
-    delta = DF['close'].diff()
-    up = delta.clip(lower=0)
-    down = -1 * delta.clip(upper=0)
-    ema_up = up.ewm(com=13, adjust=False).mean()
-    ema_down = down.ewm(com=13, adjust=False).mean()
-    rs = ema_up / ema_down
-    DF['rsi'] = 100 - (100 / (1 + rs))
-    # MACD 계산
-    exp1 = DF['close'].ewm(span=12, adjust=False).mean()
-    exp2 = DF['close'].ewm(span=26, adjust=False).mean()
-    macd = exp1 - exp2
-    signal = macd.ewm(span=9, adjust=False).mean()
-    hist = macd - signal
-    DF['macd'] = macd
-    DF['macdsignal'] = signal
-    DF['macdhist'] = hist
-    # 결측값 제거
-    DF = DF.dropna()
-    # 입력 데이터와 출력 데이터 분리
-    X = DF[['open', 'high', 'low', 'close', 'volume', 'ma5', 'ma10', 'ma20', 'ma60', 'ma120', 'rsi', 'macd', 'macdsignal', 'macdhist']]
-    y = (DF['close'].shift(-1) < DF['close']).astype(int) # time 뒤의 가격이 낮을 확률 예측
-    # 학습 데이터와 검증 데이터 분리
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-    # 모델 구성
-    model = RandomForestClassifier(n_estimators=100)
-    # 학습
-    model.fit(X_train, y_train)
-    # 예측 확률 계산
-    proba = model.predict_proba(X_test.iloc[-1].values.reshape(1,-1))[0][1]
-    proba = round(proba, 4)
-    return proba
+
+def place_sell_order(quantity):
+    try:
+        order = exchange.create_market_sell_order(symbol, quantity)
+        message = f"Placed a SELL order for {quantity} {symbol} at market price."
+        send_to_telegram(message)
+        return order
+    except Exception as e:
+        error_message = f"An error occurred while placing sell order: {e}"
+        send_to_telegram(error_message)
+        return None
+
+
+# 매매량 계산 함수 정의
+def calculate_quantity(symbol):
+    try:
+        balance = exchange.fetch_balance(params={"type": "future"})
+        total_balance = float(balance['total']['USDT'])
+        
+        # 현재 BTCUSDT 가격 조회
+        ticker = exchange.fetch_ticker(symbol)
+        btc_price = float(ticker['last'])
+        
+        # USDT 잔고를 BTC로 환산
+        quantity = total_balance / btc_price
+        
+        # 소수점 이하 자리 제거
+        quantity = round(quantity, 0)
+        
+        return quantity
+    except Exception as e:
+        error_message = f"An error occurred while calculating the quantity: {e}"
+        send_to_telegram(error_message)
+        return None
+def should_enter_position(ohlcv, ema9, ema18, volume_oscillator, is_long):
+    # 초기 조건 값 설정
+    ema9_crossed = False
+    heikin_ashi_candles_above_ema9 = False
+
+    # 진입 방향에 따른 조건 설정
+    if is_long:
+        ema_condition = ema9 > ema18
+        heikin_ashi_condition = ohlcv['ha_close'] > ema9 & ohlcv['ha_close'] > ohlcv['ha_open']
+        volume_oscillator_condition = volume_oscillator >= -5
+        num_consecutive_bearish_limit = 2
+    else:
+        ema_condition = ema9 < ema18
+        heikin_ashi_condition = ohlcv['ha_close'] < ema9 & ohlcv['ha_close'] < ohlcv['ha_open']
+        volume_oscillator_condition = volume_oscillator <= 5
+        num_consecutive_bearish_limit = 2
+
+    # 조건 1: 9EMA가 18EMA를 상하향 돌파한 시점 이후부터 검사
+    for i in range(-4, -len(ohlcv) - 1, -1):
+        if ema_condition[i] and not ema_condition[i - 1]:
+            ema9_crossed = True
+
+        if ema9_crossed:
+            # 조건 2: 하이켄 아시 캔들이 EMA선 위/아래로 이동 (양봉/음봉인 경우에만)
+            if heikin_ashi_condition[i]:
+                heikin_ashi_candles_above_ema9 = True
+                break  # 조건 충족 후 종료
+
+    # 조건 3: EMA를 터치한 음봉 수 검사
+    if ema9_crossed and heikin_ashi_candles_above_ema9:
+        num_consecutive_bearish_candles = 0  # 연속적인 음봉의 수를 세기 위한 변수
+        for i in range(-2, -len(ohlcv) - 1, -1):
+            if ema_condition[i] and not ema_condition[i - 1]:
+                num_consecutive_bearish_candles += 1
+                if num_consecutive_bearish_candles <= num_consecutive_bearish_limit:
+                    for j in range(i, -len(ohlcv) - 1, -1):
+                        if heikin_ashi_condition[j]:
+                            # 조건 4: 볼륨 오실레이터가 -5 이상/이하여야 함
+                            if volume_oscillator_condition[j]:
+                                return True
+                        else:
+                            num_consecutive_bearish_candles = 0  # 양봉이 나오면 연속적인 음봉 수 초기화
+
+    return False
+
+# 포지션 종료 함수 정의 (업데이트)
+def close_position(symbol, ema18):
+    try:
+        positions = exchange.fapiPrivateV2_get_positionrisk()
+        for position in positions:
+            if position['symbol'] == symbol:
+                entry_price = float(position['entryPrice'])
+                stop_loss_price = entry_price - (entry_price - ema18[-1])  # 손절가 설정
+                take_profit_price = entry_price + 2 * (entry_price - stop_loss_price)  # 목표가 설정
+                current_price = float(position['markPrice'])
+                quantity = abs(float(position['positionAmt']))
+
+                if position['positionSide'] == 'LONG':
+                    if current_price <= stop_loss_price or current_price >= take_profit_price:
+                        place_sell_order(quantity)
+                        message = f"Closed long position of {quantity} {symbol} at market price."
+                        send_to_telegram(message)
+                elif position['positionSide'] == 'SHORT':
+                    if current_price >= stop_loss_price or current_price <= take_profit_price:
+                        place_buy_order(quantity)
+                        message = f"Closed short position of {quantity} {symbol} at market price."
+                        send_to_telegram(message)
+    except Exception as e:
+        error_message = f"An error occurred while closing the position: {e}"
+        send_to_telegram(error_message)
+
+
+# 텔레그램으로 메시지를 보내는 함수
+def send_to_telegram(message):
+    try:
+        bot.sendMessage(chat_id, message)
+    except Exception as e:
+        print(f"An error occurred while sending to Telegram: {e}")
+
 stop = False
-isForceStart = False
-Leverage = 1
 def handle(msg):
     global stop
-    global isForceStart
     global Leverage
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
-            bot.sendMessage(chat_id, 'Starting...')
+            send_to_telegram('Starting...')
             stop = False
         elif msg['text'] == '/stop':
-            bot.sendMessage(chat_id, 'Stopping...')
+            send_to_telegram('Stopping...')
             stop = True
-        elif msg['text'] == '/isForceStart':
-            bot.sendMessage(chat_id, '일부 매매조건을 무시하고 매매합니다...')
-            isForceStart = True
-        elif msg['text'] == '/isNormalStart':
-            bot.sendMessage(chat_id, '일부 매매조건을 무시하지않고 매매합니다....')
-            isForceStart = False
         elif msg['text'] == '/set_Leverage':
-            bot.sendMessage(chat_id, '현재 레버리지 : Leverage\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60\n/Leverage_100')
+            send_to_telegram(f'현재 레버리지: {Leverage}\n레버리지 설정\n/Leverage_1\n/Leverage_5\n/Leverage_10\n/Leverage_20\n/Leverage_40\n/Leverage_60')
         elif msg['text'] == '/Leverage_1':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 1
         elif msg['text'] == '/Leverage_5':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 5
         elif msg['text'] == '/Leverage_10':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 10
         elif msg['text'] == '/Leverage_20':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 20
         elif msg['text'] == '/Leverage_40':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 40
         elif msg['text'] == '/Leverage_60':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
+            send_to_telegram('Leverage setting complete!')
             Leverage = 60
-        elif msg['text'] == '/Leverage_100':
-            bot.sendMessage(chat_id, 'Leverage setting complete!')
-            Leverage = 100
         elif msg['text'] == '/help':
-            bot.sendMessage(chat_id, '/start - 시작\n/stop - 중지\n/isForceStart - 일부 매매조건을 무시하고 매매합니다.\n/isNormalStart - 일부 매매조건을 무시하지 않고 매매합니다.\n/set_Leverage - 레버리지 설정')
+            send_to_telegram('/start - 시작\n/stop - 중지\n/set_Leverage - 레버리지 설정')
+
+# 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
-def send_message(message):
-    chat_id = "5820794752"
-    bot.sendMessage(chat_id, message)
-def buy_coin(buy_amount):
-    global btc_amount
-    # Get the ticker information for COIN
-    ticker = client.futures_ticker(symbol=COIN)
-    price = float(ticker['lastPrice'])
-    # Calculate the amount of BTC
-    btc_amount = buy_amount / price
-    btc_amount = round(btc_amount,3)
-    client.futures_create_order(symbol=COIN, side='BUY', type='MARKET', quantity=btc_amount)
-    print(btc_amount)
-# 스케줄러 실행
-def job():
-    usd = get_balance('USDT')
-    btc = get_position(COIN)
-    multiplier = 1
-    last_buy_time = None
-    time_since_last_buy = None
-    buy_amount = usd # 매수 금액 계산
-    bull_market = False
-    start = True
-    while stop == False:
-        try:
-            now = datetime.now()
-            current_price = get_current_price(COIN)
-            client.futures_change_leverage(symbol=COIN, leverage=Leverage)
-            if now.hour % 4 == 0 and now.minute == 0 or start == True:
-                usd = get_balance('USDT')
-                buy_amount = usd
-                target_price = predict_target_price(COIN, "low")
-                sell_price = predict_target_price(COIN, "high")
-                PriceEase = round((sell_price - target_price) * 0.1, 1)
-                hour_1 = 1-is_bull_market(COIN, '1h')
-                hour_4 = 1-is_bull_market(COIN, '4h')
-                hour_8 = 1-is_bull_market(COIN, '8h')
-                hour_24 = 1-is_bull_market(COIN, '1d')
-                if hour_24 >= 0.5 and hour_4 >= 0.45 and hour_8 >= 0.45:
-                    bull_market = True
-                else:
-                    bull_market = False
-                message = f"매수가 조회 : {target_price}\n매도가 조회 : {sell_price}\n현재가 조회 : {current_price}\n1시간뒤 크거나 같을 확률 예측 : {hour_1*100}%\n4시간뒤 크거나 같을 확률 예측 : {hour_4*100}%\n8시간뒤 크거나 같을 확률 예측 : {hour_8*100}%{bull_market}\n내일 크거나 같을 확률{hour_24*100}%\n달러잔고 : {usd}\n비트코인잔고 : {btc}\n목표가 완화 : {PriceEase}\n레버리지 : {Leverage}"
-                send_message(message)
-                start = False
-            # 매수 조건
-            if current_price <= target_price + PriceEase:
-                usd = get_balance('USDT')
-                if bull_market==True or isForceStart==True:
-                    if usd > 35 and target_price + PriceEase < sell_price-(PriceEase*5):
-                        try:
-                            buy_coin(buy_amount)
-                            pass
-                        except BinanceAPIException as e:
-                            message = f"매수 실패 {e}!"
-                            print(e)
-                            send_message(message)
-                        else:
-                            message = f"매수 성공 !"
-                            send_message(message)
-                            last_buy_time = now
-                            multiplier = 1
-            # 매도 조건
-            else:
-                if current_price >= sell_price-(PriceEase*multiplier):
-                    btc = get_balance('BTC')
-                    if btc > 0.00008 and btc is not None:
-                        client.futures_create_order(symbol=COIN, side='SELL', type='MARKET', quantity=btc_amount)
-                        message = f"매도 완료 !"
-                        send_message(message)
-                        isForceStart = False
-            # PriceEase 증가 조건
-            if last_buy_time is not None:
-                time_since_last_buy = now - last_buy_time
-                if time_since_last_buy.total_seconds() >= 3600: # 1시간마다
-                    multiplier += 1
-                    last_buy_time = now
-                    if multiplier>5:
-                        multiplier=5
-                        last_buy_time = None
-            time.sleep(1)
-        except Exception as e:
-            print(e)
-            time.sleep(1)
-schedule.every(1).seconds.do(job)
-while True:
-    try:
-        schedule.run_pending()
-        time.sleep(1)
-    except Exception as e:
-        print(e)
-        time.sleep(1)
+
+print("autotradestart")
+position_entered = False  # 포지션 진입 상태를 추적하는 변수
+
+# 메인 루프
+try:
+    while not stop:
+        # OHLCV 데이터 가져오기
+        candles = exchange.fetch_ohlcv(
+            symbol=symbol,
+            timeframe=timeframe,
+            since=None,
+            limit=50
+        )
+
+        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        close_prices = df['close'].astype(float)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        print(candles)
+        print(df)
+
+        # 히킨 아시 캔들 계산
+        heikin_ashi_candles = calculate_heikin_ashi_candles(df)
+        print(heikin_ashi_candles)
+
+        # 이동평균 계산
+        ema9 = calculate_ema(close_prices, 9)
+        ema18 = calculate_ema(close_prices, 18)
+        print(ema9)
+        print(ema18)
+
+        # 볼륨 오실레이터 계산
+        volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float), 5, 10)
+        print(volume_oscillator)
+        print(place_sell_order(0.001))
+        # 메수 (롱) 진입 조건
+        long_entry_condition = should_enter_position(heikin_ashi_candles, ema9, ema18, volume_oscillator, is_long=True)
+        if long_entry_condition:
+            quantity = calculate_quantity(symbol)
+            if quantity:
+                print(place_buy_order(quantity))
+                print(close_position(symbol, ema18))
+
+        # 메도 (숏) 진입 조건
+        short_entry_condition = should_enter_position(heikin_ashi_candles, ema9, ema18, volume_oscillator, is_long=False)
+        if short_entry_condition:
+            quantity = calculate_quantity(symbol)
+            if quantity:
+                print(place_sell_order(quantity))
+                print(close_position(symbol, ema18))
+
+except Exception as e:
+    error_message = f"An error occurred: {e}"
+    send_to_telegram(error_message)
