@@ -241,16 +241,14 @@ def execute_strategy(data, window, num_std_dev, ema_period):
             stop_loss=True
 
     if stop_loss==True and trend_follow_short==True:
-        if current_price < (data['open'].iloc[-1] + data['close'].iloc[-1])/2:
-            send_to_telegram(f'포지션 종료 -> 손절 : {current_price*short_quantity}')
-            place_limit_order(symbol, 'BUY', long_quantity, current_price)
-            trend_follow_short = False
+        send_to_telegram(f'포지션 종료 -> 손절 : {current_price*short_quantity}')
+        place_limit_order(symbol, 'BUY', long_quantity, (data['open'].iloc[-1] + data['close'].iloc[-1])/2)
+        trend_follow_short = False
 
     elif stop_loss==True and trend_follow_long==True:
-        if current_price > (data['open'].iloc[-1] + data['close'].iloc[-1])/2:
-            send_to_telegram(f'포지션 종료 -> 손절 : {current_price*short_quantity}')
-            place_limit_order(symbol, 'SELL', short_quantity, current_price)
-            trend_follow_long = False
+        send_to_telegram(f'포지션 종료 -> 손절 : {current_price*short_quantity}')
+        place_limit_order(symbol, 'SELL', short_quantity, (data['open'].iloc[-1] + data['close'].iloc[-1])/2)
+        trend_follow_long = False
 
     if short_trade_executed==True | long_trade_executed==True:
         order_status = exchange.fetch_order(order['id'], symbol)['status']
