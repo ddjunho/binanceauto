@@ -306,7 +306,7 @@ def execute_strategy(data, window, num_std_dev, ema_period):
         if order_status == 'open':
             now = datetime.now()
             if now>=future:
-                exchange.cancel_order(order['id'])
+                exchange.cancel_order(order['id'], symbol)
                 send_to_telegram(f'포지션 취소')
                 short_trade_executed = False
                 long_trade_executed = False
