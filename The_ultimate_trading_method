@@ -354,7 +354,7 @@ while True:
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
             # 전략 실행
-            execute=execute_strategy(df, window=12, num_std_dev=3.3, ema_period=20)
+            execute=execute_strategy(df, window=15, num_std_dev=3, ema_period=20)
             #print(execute)
         elif stop:
             long_trade_executed = False
