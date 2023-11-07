@@ -65,7 +65,6 @@ MessageLoop(bot, handle).run_as_thread()
 
 # 매수 및 매도 주문 함수 정의
 def place_limit_order(symbol, side, amount, price):
-    global order
     order = exchange.create_order(
         symbol=symbol,
         type="LIMIT",
@@ -73,6 +72,7 @@ def place_limit_order(symbol, side, amount, price):
         amount=amount,
         price=price
     )
+    return order
 
 def place_stop_loss_order(symbol, side, amount, price, stop_price):
     return exchange.create_order(
@@ -84,10 +84,15 @@ def place_stop_loss_order(symbol, side, amount, price, stop_price):
         price=price
     )
 
+# 전체 잔액 정보 조회
+def get_balance():
+    balance = exchange.fetch_balance(params={"type": "future"})
+    return balance
+
 # 매매량 계산 함수 정의
 def calculate_quantity(symbol):
     try:
-        balance = exchange.fetch_balance(params={"type": "future"})
+        balance = get_balance()
         total_balance = float(balance['total']['USDT'])
         
         # 현재 BTCUSDT 가격 조회
@@ -106,27 +111,32 @@ def calculate_quantity(symbol):
         send_to_telegram(error_message)
         return None
 
+
+# 포지션 종료
+def close_position(symbol):
+    balance_info = get_balance()
+    if symbol in balance_info['total']:
+        quantity = balance_info['total'][symbol]
+        if quantity > 0:
+            # 포지션 방향 결정
+            position_direction = float(position['positionAmt'])
+            if position_direction > 0:
+                side = 'SELL'
+            else:
+                side = 'BUY'
+            
+            order = exchange.create_limit_order(symbol, side, quantity)
+            send_to_telegram(f"Placed limit order to close position of {quantity} {symbol}.")
+        else:
+            send_to_telegram(f"No position of {symbol} to close.")
+    else:
+        send_to_telegram("Error getting balance information.")
+
 # 이동평균 계산 함수 정의
 def calculate_ema(data, period):
     ema = data['close'].ewm(span=period, adjust=False).mean()
     return ema
 
-# 포지션 종료 함수 정의
-def close_position(symbol):
-    position = exchange.fapiPrivateV2_get_positionrisk()
-    for item in position:
-        if item["symbol"] == symbol:
-            long_quantity = float(item["positionAmt"]) if item["positionSide"] == "LONG" else 0
-            short_quantity = -float(item["positionAmt"]) if item["positionSide"] == "SHORT" else 0
-
-            if long_quantity > 0:
-                exchange.fapiPrivate_create_order(symbol=symbol, side="SELL", type="MARKET", quantity=long_quantity)
-                send_to_telegram(f"Closed long position of {long_quantity} {symbol} at market price.")
-            if short_quantity < 0:
-                exchange.fapiPrivate_create_order(symbol=symbol, side="BUY", type="MARKET", quantity=-short_quantity)
-                send_to_telegram(f"Closed short position of {-short_quantity} {symbol} at market price.")
-            if long_quantity == 0 and short_quantity == 0:
-                send_to_telegram(f"No position of {symbol} to close.")
 
 # 볼륨 오실레이터 계산 함수 정의
 def calculate_volume_oscillator(data):
@@ -159,7 +169,6 @@ def execute_strategy(data, window, num_std_dev, ema_period):
     global profit
     global long_quantity
     global short_quantity
-    global future
     global volume_oscillator1
     global volume_oscillator2
     global following
@@ -167,14 +176,18 @@ def execute_strategy(data, window, num_std_dev, ema_period):
     global trend_follow_short
     global stop_loss
     global stop_profit
-    global status_future
+    global sell_future
+    global buy_future
+    global sell_status_future
+    global buy_status_future
     global follow
+    global limit_buy_order
+    global limit_sell_order
 
     upper_band, lower_band = calculate_bollinger_bands(data, window, num_std_dev)
     current_price = data['close'].iloc[-1]
     ema20 = calculate_ema(data, ema_period)
     ema9 = calculate_ema(data, 9)
-    ema50 = calculate_ema(data, 50)
     if (upper_band.iloc[-1] - lower_band.iloc[-1])/current_price*100>=4:
         ema = ema9
     else:
@@ -190,11 +203,11 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                     volume_oscillator = calculate_volume_oscillator(data['volume'].astype(float))
                     volume_oscillator1 = volume_oscillator.iloc[-3]
                     volume_oscillator2 = volume_oscillator.iloc[-4]
-                    place_limit_order(symbol, 'SELL', short_quantity, profit)
+                    limit_sell_order = place_limit_order(symbol, 'SELL', short_quantity, profit)
                     short_trade_executed = True
                     now = datetime.now()
-                    status_future = now
-                    future = now + timedelta(hours=6)
+                    sell_status_future = now
+                    sell_future = now + timedelta(hours=6)
                     send_to_telegram(f'숏 -> {profit}')
         if not long_trade_executed:
             if data['low'].iloc[-3] <= lower_band.iloc[-3]:
@@ -206,57 +219,60 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                     volume_oscillator = calculate_volume_oscillator(data['volume'].astype(float))
                     volume_oscillator1 = volume_oscillator.iloc[-3]
                     volume_oscillator2 = volume_oscillator.iloc[-4]
-                    place_limit_order(symbol, 'BUY', long_quantity, profit)
+                    limit_buy_order = place_limit_order(symbol, 'BUY', long_quantity, profit)
                     long_trade_executed = True
                     now = datetime.now()
-                    status_future = now
-                    future = now + timedelta(hours=6)
+                    buy_status_future = now
+                    buy_future = now + timedelta(hours=6)
                     send_to_telegram(f'롱 -> {profit}')
     #print(calculate_quantity(symbol))
 
     if short_trade_executed==True:
         if current_price <= ema.iloc[-1]:
             # 이익 신호: 9 EMA에 도달했을 때 포지션 종료 (익절)
-            order_info = exchange.fetch_order(order['id'], symbol)
-            order_status = order_info['status']
-            if order_status == 'open':
-                now = datetime.now()
-                if now>=status_future:
-                    send_to_telegram(f'지정가 매도 유지')
-                    status_future = now + timedelta(hours=1)
-            else:
-                if volume_oscillator1 >= 40 and volume_oscillator2 >= 40:
-                    end_profit = abs(profit - current_price)
-                    send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-                    close_position(symbol)
-                    long_quantity = calculate_quantity(symbol)*(leverage-0.2)
-                    following=current_price
-                    if follow==True:
-                        place_limit_order(symbol, 'BUY', long_quantity, following)
-                        trend_follow_long = True
-                        send_to_telegram(f'추세롱 -> {following}')
+            if volume_oscillator1 >= 40 and volume_oscillator2 >= 40:
+                order_info = exchange.fetch_order(limit_sell_order['id'], symbol)
+                order_status = order_info['status']
+                if order_status == 'open':
+                    exchange.cancel_order(limit_sell_order['id'], symbol)
                     short_trade_executed = False
                 else:
                     end_profit = abs(profit - current_price)
                     send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-                    close_position(symbol)
+                    place_limit_order(symbol, 'BUY', short_quantity, current_price)
+                    following=current_price
+                    if follow==True:
+                        long_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                        place_limit_order(symbol, 'BUY', long_quantity, following)
+                        trend_follow_long = True
+                        send_to_telegram(f'추세롱 -> {following}')
+                    short_trade_executed = False
+            else:
+                order_info = exchange.fetch_order(limit_sell_order['id'], symbol)
+                order_status = order_info['status']
+                if order_status == 'open':
+                    now = datetime.now()
+                    if now>=sell_status_future:
+                        send_to_telegram(f'지정가 매도 유지')
+                        sell_status_future = now + timedelta(hours=1)
+                else:
+                    end_profit = abs(profit - current_price)
+                    send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
+                    place_limit_order(symbol, 'BUY', short_quantity, current_price)
                     short_trade_executed = False
             
     if long_trade_executed==True:
         if current_price >= ema.iloc[-1]:
-            order_info = exchange.fetch_order(order['id'], symbol)
-            order_status = order_info['status']
-            if order_status == 'open':
-                now = datetime.now()
-                if now>=status_future:
-                    send_to_telegram(f'지정가 매수 유지')
-                    status_future = now + timedelta(hours=1)
-            
-            else:
-                if volume_oscillator1 >= 40 and volume_oscillator2 >= 40:
+            if volume_oscillator1 >= 40 and volume_oscillator2 >= 40:
+                order_info = exchange.fetch_order(limit_buy_order['id'], symbol)
+                order_status = order_info['status']
+                if order_status == 'open':
+                    exchange.cancel_order(limit_buy_order['id'], symbol)
+                    long_trade_executed = False
+                else:
                     end_profit = abs(current_price - profit)
                     send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-                    close_position(symbol)
+                    place_limit_order(symbol, 'SELL', long_quantity, current_price)
                     short_quantity = calculate_quantity(symbol)*(leverage-0.2)
                     following=current_price
                     if follow==True:
@@ -264,18 +280,26 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                         trend_follow_short = True
                         send_to_telegram(f'추세숏 -> {following}')
                     long_trade_executed = False
+            else:
+                order_info = exchange.fetch_order(limit_buy_order['id'], symbol)
+                order_status = order_info['status']
+                if order_status == 'open':
+                    now = datetime.now()
+                    if now>=buy_status_future:
+                        send_to_telegram(f'지정가 매수 유지')
+                        buy_status_future = now + timedelta(hours=1)
                 else:
                     end_profit = abs(current_price - profit)
                     send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-                    close_position(symbol)
+                    place_limit_order(symbol, 'SELL', long_quantity, current_price)
                     long_trade_executed = False
-            
+                
     if trend_follow_long==True:
         ema = calculate_ema(data, ema_period)
         if profit<=ema:
             end_profit=abs(following-current_price)
             send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-            close_position(symbol)
+            place_limit_order(symbol, 'SELL', long_quantity, current_price)
             trend_follow_long = False
         elif ema20 > ema9:
             stop_loss=True
@@ -284,7 +308,7 @@ def execute_strategy(data, window, num_std_dev, ema_period):
         if profit>=ema:
             end_profit=abs(following-current_price)
             send_to_telegram(f'포지션 종료 -> 차익 : {end_profit*short_quantity}')
-            close_position(symbol)
+            place_limit_order(symbol, 'BUY', short_quantity, current_price)
             trend_follow_short = False
         elif ema20 < ema9:
             stop_loss=True
@@ -301,39 +325,24 @@ def execute_strategy(data, window, num_std_dev, ema_period):
         place_limit_order(symbol, 'SELL', short_quantity, (data['open'].iloc[-1] + data['close'].iloc[-1])/2)
         trend_follow_long = False
 
-    if long_trade_executed==True:
-        ema50_upper = (upper_band.iloc[-1] + ema50.iloc[-1])/2
-        if current_price > ema50_upper:
-            order_info = exchange.fetch_order(order['id'], symbol)
-            order_status = order_info['status']
-            if order_status == 'open':
-                now = datetime.now()
-                if now>=future:
-                    exchange.cancel_order(order['id'], symbol)
-                    send_to_telegram(f'롱 포지션 취소')
-                    long_trade_executed = False
-
     if short_trade_executed==True:
-        ema50_lower = (lower_band.iloc[-1] + ema50.iloc[-1])/2
-        if current_price < ema50_lower:
-            order_info = exchange.fetch_order(order['id'], symbol)
-            order_status = order_info['status']
-            if order_status == 'open':
-                now = datetime.now()
-                if now>=future:
-                    exchange.cancel_order(order['id'], symbol)
-                    send_to_telegram(f'숏 포지션 취소')
-                    short_trade_executed = False
-        
-    if short_trade_executed==True | long_trade_executed==True:
-        order_info = exchange.fetch_order(order['id'], symbol)
+        order_info = exchange.fetch_order(limit_sell_order['id'], symbol)
         order_status = order_info['status']
         if order_status == 'open':
             now = datetime.now()
-            if now>=future:
-                exchange.cancel_order(order['id'], symbol)
-                send_to_telegram(f'포지션 취소')
+            if now>=sell_future:
+                exchange.cancel_order(limit_sell_order['id'], symbol)
+                send_to_telegram(f'시간초과로 인한 숏 포지션 취소')
                 short_trade_executed = False
+                
+    elif long_trade_executed==True:
+        order_info = exchange.fetch_order(limit_buy_order['id'], symbol)
+        order_status = order_info['status']
+        if order_status == 'open':
+            now = datetime.now()
+            if now>=buy_future:
+                exchange.cancel_order(limit_buy_order['id'], symbol)
+                send_to_telegram(f'시간초과로 인한 롱 포지션 취소')
                 long_trade_executed = False
 
 
@@ -347,14 +356,14 @@ while True:
                 symbol=symbol,
                 timeframe=timeframe,
                 since=None,
-                limit=60
+                limit=50
             )
 
             df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
             # 전략 실행
-            execute=execute_strategy(df, window=15, num_std_dev=3, ema_period=20)
+            execute=execute_strategy(df, window=20, num_std_dev=3.2, ema_period=20)
             #print(execute)
         elif stop:
             long_trade_executed = False
