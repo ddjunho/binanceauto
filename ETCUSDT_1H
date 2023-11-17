@@ -300,7 +300,7 @@ while True:
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
             time.sleep(30)          
-            volume_oscillator = calculate_volume_oscillator(data['volume'].astype(float))
+            volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float))
             volume_oscillator1 = volume_oscillator.iloc[-1]
             volume_oscillator2 = volume_oscillator.iloc[-2]
             if volume_oscillator1 >= 40 and volume_oscillator2 <= 40:
