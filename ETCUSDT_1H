@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import telepot
 import time
-import threading
 from datetime import datetime, timedelta
 from telepot.loop import MessageLoop
 
@@ -53,10 +52,9 @@ def handle(msg):
             stop = True
         elif msg['text'] == '/help':
             send_to_telegram(f'/{symbol}start - 시작\n/{symbol}stop - 중지')
+
 # 텔레그램 메시지 루프
-bot_lock = threading.Lock()
-
-
+MessageLoop(bot, handle).run_as_thread()
 # 매수 및 매도 주문 함수 정의
 def place_limit_order(symbol, side, amount, price):
     order = exchange.create_order(
@@ -289,8 +287,6 @@ def execute_strategy(data, window, num_std_dev, ema_period):
 count=0
 while True:
     try:
-        with bot_lock:
-            MessageLoop(bot, handle).run_as_thread()
         if not stop:
             # OHLCV 데이터 가져오기
             candles = exchange.fetch_ohlcv(
