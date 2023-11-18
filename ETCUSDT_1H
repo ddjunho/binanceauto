@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
+bot = telepot.Bot(token="6371477581:AAFZFHmcDgSheOfqXPWmgmAJpygkQE1dQ4M")
 chat_id = "5820794752"
 
 # Binance API 설정
