@@ -344,7 +344,41 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                 exchange.cancel_order(limit_buy_order['id'], symbol)
                 send_to_telegram(f'시간초과로 인한 롱 포지션 취소')
                 long_trade_executed = False
+    if follow==True:
+        Check_time_series_trends('1h')
 
+def Check_time_series_trends(Checked_time):
+    global short_trade_executed
+    global long_trade_executed
+    global limit_buy_order
+    global limit_sell_order
+    
+    if short_trade_executed==True or long_trade_executed==True:
+        candles = exchange.fetch_ohlcv(
+                    symbol=symbol,
+                    timeframe=Checked_time,
+                    since=None,
+                    limit=10
+                )
+        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        if df['close'].iloc[-5]<df['close'].iloc[-4]<df['close'].iloc[-3]<df['close'].iloc[-2]<df['close'].iloc[-1]:
+            order_info = exchange.fetch_order(limit_sell_order['id'], symbol)
+            order_status = order_info['status']
+            if order_status == 'open':
+                exchange.cancel_order(limit_sell_order['id'], symbol)
+                short_trade_executed = False
+                send_to_telegram(f'계속되는 추세로 인한 포지션 취소')
+                time.sleep(60*15)
+
+        elif df['close'].iloc[-5]>df['close'].iloc[-4]>df['close'].iloc[-3]>df['close'].iloc[-2]>df['close'].iloc[-1]:
+            order_info = exchange.fetch_order(limit_buy_order['id'], symbol)
+            order_status = order_info['status']
+            if order_status == 'open':
+                exchange.cancel_order(limit_buy_order['id'], symbol)
+                long_trade_executed = False
+                send_to_telegram(f'계속되는 추세로 인한 포지션 취소')
+                time.sleep(60*15)
 
 # 메인 루프
 count=0
