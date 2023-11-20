@@ -198,7 +198,10 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                 if data['close'].iloc[-2] <= data['open'].iloc[-2]:
                 # 이전 캔들의 고가가 상단 밴드를 돌파하고 현재 캔들이 하락한 경우 공매도
                     short_quantity = calculate_quantity(symbol)*(leverage-0.2)
-                    profit = data['high'].iloc[-3]
+                    if data['high'].iloc[-3] > data['high'].iloc[-2]:
+                        profit = data['high'].iloc[-3]
+                    elif data['high'].iloc[-3] <= data['high'].iloc[-2]:
+                        profit = data['high'].iloc[-2]
                     stop_profit = data['open'].iloc[-3]
                     volume_oscillator = calculate_volume_oscillator(data['volume'].astype(float))
                     volume_oscillator1 = volume_oscillator.iloc[-3]
@@ -214,7 +217,10 @@ def execute_strategy(data, window, num_std_dev, ema_period):
                 if data['close'].iloc[-2] >= data['open'].iloc[-2]:
                 # 이전 캔들의 저가가 하단 밴드를 돌파하고 현재 캔들이 상승한 경우 매수
                     long_quantity = calculate_quantity(symbol)*(leverage-0.2)
-                    profit = data['low'].iloc[-3] 
+                    if data['low'].iloc[-3] < data['low'].iloc[-2]:
+                        profit = data['low'].iloc[-3]
+                    elif data['high'].iloc[-3] >= data['high'].iloc[-2]:
+                        profit = data['low'].iloc[-2]
                     stop_profit = data['open'].iloc[-3]
                     volume_oscillator = calculate_volume_oscillator(data['volume'].astype(float))
                     volume_oscillator1 = volume_oscillator.iloc[-3]
