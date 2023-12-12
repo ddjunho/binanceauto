@@ -40,7 +40,7 @@ def send_to_telegram(message):
         send_to_telegram(f"An error occurred while sending to Telegram: {e}")
 
 stop = False
-k_value=5.5
+k_value = 5.5
 def handle(msg):
     global stop, k_value
     content_type, chat_type, chat_id = telepot.glance(msg)
@@ -52,18 +52,25 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram('/start - 시작\n/stop - 중지\n/set_k - k 값을 설정\n 예시: /set_k_5.5')
-
-        # 추가된 부분
-        elif msg['text'].startswith('/set_k'):
-            try:
-                # 예시: /set_k_5.5
-                new_k_value = float(msg['text'].split('_')[1])
-                k_value = new_k_value
-                send_to_telegram(f'k 값을 {k_value}로 설정하였습니다.')
-            except Exception as e:
-                send_to_telegram(f'k 값을 설정하는 도중 오류가 발생했습니다: {e}')
-
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}')
+        elif msg['text'] == '/set(4)':
+            k_value = 4
+        elif msg['text'] == '/set(4.5)':
+            k_value = 4.5
+        elif msg['text'] == '/set(5)':
+            k_value = 5
+        elif msg['text'] == '/set(5.5)':
+            k_value = 5.5
+        elif msg['text'] == '/set(6)':
+            k_value = 6
+        elif msg['text'] == '/set(6.5)':
+            k_value = 6.5
+        elif msg['text'] == '/set(7)':
+            k_value = 7
+        elif msg['text'] == '/set(7.5)':
+            k_value = 7.5
+        elif msg['text'] == '/set(8)':
+            k_value = 8
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
 
