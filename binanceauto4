@@ -1,0 +1,113 @@
+import pandas as pd
+import numpy as np
+import ccxt
+import time
+
+# Binance API 설정
+from binance_keys import api_key, api_secret
+
+# Binance API 설정
+exchange = ccxt.binance({
+    'rateLimit': 1000,
+    'enableRateLimit': True,
+    'apiKey': api_key,
+    'secret': api_secret,
+    'options': {
+        'defaultType': 'future'
+    }
+})
+
+# 트레이딩 페어 및 타임프레임 설정
+symbol = 'ETHUSDT'
+timeframe = '5m'
+
+# 레버리지 설정
+leverage = 5
+exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage})
+
+# 매수 및 매도 주문 함수 정의
+def place_limit_order(symbol, side, amount, price):
+    order = exchange.create_order(
+        symbol=symbol,
+        type="LIMIT",
+        side=side,
+        amount=amount,
+        price=price
+    )
+    return order
+
+# 전체 잔액 정보 조회
+def get_balance():
+    balance = exchange.fetch_balance(params={"type": "future"})
+    return balance
+
+# 매매량 계산 함수 정의
+def calculate_quantity(symbol):
+    try:
+        balance = get_balance()
+        total_balance = float(balance['total']['USDT'])
+        
+        # 현재 BTCUSDT 가격 조회
+        ticker = exchange.fetch_ticker(symbol)
+        btc_price = float(ticker['last'])
+        
+        # USDT 잔고를 BTC로 환산
+        quantity = total_balance / btc_price 
+        
+        # 소수점 이하 자리 제거
+        quantity = round(quantity, 3)
+        
+        return quantity
+    except Exception as e:
+        error_message = f"An error occurred while calculating the quantity: {e}"
+        send_to_telegram(error_message)
+        return None
+
+# 변동성 돌파 전략을 적용한 매매 로직
+def volatility_breakout_strategy(symbol, timeframe, k_value):
+    candles = exchange.fetch_ohlcv(
+        symbol=symbol,
+        timeframe=timeframe,
+        since=None,
+        limit=50
+    )
+
+    df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+
+    # 변동성 돌파 전략
+    df['range'] = df['high'].iloc[-2] - df['low'].iloc[-2]
+    df['target'] = df['open'].iloc[-1] + df['range'].shift(1) + k_value
+    df['buy_signal'] = np.where(df['high'].iloc[-1] > df['target'], 1, 0)
+    df['sell_signal'] = np.where(df['low'].iloc[-1] < df['target'], 1, 0)
+
+    # 매수 및 매도 주문
+    for index, row in df.iterrows():
+        if row['buy_signal'] == 1:
+            quantity = calculate_quantity(symbol)
+            if quantity:
+                place_limit_order(symbol, 'buy', quantity, row['open'])
+                print(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
+
+        elif row['sell_signal'] == 1:
+            quantity = calculate_quantity(symbol)
+            if quantity:
+                place_limit_order(symbol, 'sell', quantity, row['open'])
+                print(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
+
+# 매매 주기 (예: 5분마다 전략 실행)
+trade_interval = 300  # 초 단위
+
+while True:
+    try:
+        # 변동성 돌파 전략 실행
+        volatility_breakout_strategy(symbol, timeframe, k_value)
+        
+        # 대기 시간
+        print(f"Waiting for {trade_interval} seconds...")
+        time.sleep(trade_interval)
+        
+    except Exception as e:
+        # 예외 처리: 오류가 발생하면 로그를 출력하고 계속 진행
+        print(f"An error occurred: {e}")
+        continue
