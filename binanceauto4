@@ -37,8 +37,9 @@ def send_to_telegram(message):
         send_to_telegram(f"An error occurred while sending to Telegram: {e}")
 
 stop = False
+k_value=5.5
 def handle(msg):
-    global stop
+    global stop, k_value
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
@@ -48,7 +49,20 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram('/start - 시작\n/stop - 중지')
+            send_to_telegram('/start - 시작\n/stop - 중지\n/set_k - k 값을 설정\n 예시: /set_k 5.5')
+
+        # 추가된 부분
+        elif msg['text'].startswith('/set_k'):
+            try:
+                # 예시: /set_k 5.5
+                new_k_value = float(msg['text'].split(' ')[1])
+                k_value = new_k_value
+                send_to_telegram(f'k 값을 {k_value}로 설정하였습니다.')
+            except Exception as e:
+                send_to_telegram(f'k 값을 설정하는 도중 오류가 발생했습니다: {e}')
+
+# 텔레그램 메시지 루프
+MessageLoop(bot, handle).run_as_thread()
 
 # 매수 및 매도 주문 함수 정의
 def place_limit_order(symbol, side, amount, price):
@@ -147,28 +161,30 @@ def volatility_breakout_strategy(symbol, df, k_value):
 
 # 매매 주기 (예: 5분마다 전략 실행)
 trade_interval = 1  # 초 단위
-
+count=0
 while True:
     try:
-        candles = exchange.fetch_ohlcv(
-            symbol=symbol,
-            timeframe=timeframe,
-            since=None,
-            limit=50
-        )
-    
-        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        if not stop:
+            candles = exchange.fetch_ohlcv(
+                symbol=symbol,
+                timeframe=timeframe,
+                since=None,
+                limit=50
+            )
         
-        # 종가 예측 실행
-        predict_price(df)
-        # 변동성 돌파 전략 실행
-        volatility_breakout_strategy(symbol, df, k_value)
-        
-        # 대기 시간
-        send_to_telegram(f"Waiting for {trade_interval} seconds...")
-        time.sleep(trade_interval)
-        
+            df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            
+            # 종가 예측 실행
+            predict_price(df)
+            # 변동성 돌파 전략 실행
+            volatility_breakout_strategy(symbol, df, k_value)
+            
+            # 대기 시간
+            send_to_telegram(f"Waiting for {trade_interval} seconds...")
+            time.sleep(trade_interval)
+        elif stop:
+            time.sleep(60)
     except Exception as e:
         send_to_telegram(f"An error occurred: {e}")
         count+=1
