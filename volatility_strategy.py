@@ -181,7 +181,6 @@ while True:
             volatility_breakout_strategy(symbol, df, k_value)
             
             # 대기 시간
-            send_to_telegram(f"Waiting for {trade_interval} seconds...")
             time.sleep(trade_interval)
         elif stop:
             time.sleep(60)
