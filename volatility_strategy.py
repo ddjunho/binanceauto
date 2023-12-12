@@ -2,9 +2,7 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
-import holidays
-holidays.USE_HOLIDAY_CLASSES = False
-from fbprophet import Prophet
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 import telepot
 from telepot.loop import MessageLoop
 
@@ -109,35 +107,33 @@ def calculate_quantity(symbol):
 predicted_close_price = 0
 
 def predict_price(df):
-    """Prophet으로 다음 5분 후 종가 가격 예측"""
+    """SARIMA로 다음 5분 후 종가 가격 예측"""
     global predicted_close_price
     
-    # Prophet 모델에 사용할 열 선택 및 이름 변경
+    # SARIMA 모델에 사용할 열 선택 및 이름 변경
     df = df.rename(columns={'timestamp': 'ds', 'open': 'open', 'high': 'high', 'low': 'low', 'close': 'y', 'volume': 'volume'})
     
-    # Prophet 모델 초기화 및 학습
-    model = Prophet()
-    model.add_regressor('open')
-    model.add_regressor('high')
-    model.add_regressor('low')
-    model.add_regressor('volume')
+    # 데이터프레임에서 시간 열을 인덱스로 설정
+    df.set_index('ds', inplace=True)
     
-    model.fit(df)
+    # SARIMA 모델 초기화 및 학습
+    order = (1, 1, 1, 24)  # (p, d, q, s): ARIMA의 차수와 계절성 주기
+    model = SARIMAX(df['y'], order=order)
+    results = model.fit(disp=False)
     
-    # 다음 5분 후를 예측할 데이터 프레임 생성
-    future = model.make_future_dataframe(periods=1, freq='5T')
+    # 다음 5분 후를 예측할 데이터 포인트 생성
+    future = pd.DataFrame(index=[df.index[-1] + pd.Timedelta(minutes=5)])
     future['open'] = df['open'].iloc[-1]
     future['high'] = df['high'].iloc[-1]
     future['low'] = df['low'].iloc[-1]
     future['volume'] = df['volume'].iloc[-1]
     
     # 예측 수행
-    forecast = model.predict(future)
+    forecast = results.get_forecast(steps=1, exog=future)
     
     # 예측된 종가 출력
-    close_value = forecast.iloc[-1]['yhat']
+    close_value = forecast.predicted_mean.iloc[0]
     predicted_close_price = close_value
-
 
 # 변동성 돌파 전략을 적용한 매매 로직
 def volatility_breakout_strategy(symbol, df, k_value):
