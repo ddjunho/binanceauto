@@ -117,7 +117,7 @@ def predict_price(df):
     df.set_index('ds', inplace=True)
     
     # SARIMA 모델 초기화 및 학습
-    order = (1, 1, 1, 24)  # (p, d, q, s): ARIMA의 차수와 계절성 주기
+    order = (1, 1, 1)  # (p, d, q): ARIMA의 차수
     model = SARIMAX(df['y'], order=order)
     results = model.fit(disp=False)
     
