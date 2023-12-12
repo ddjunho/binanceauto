@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
+import telepot
 from telepot.loop import MessageLoop
 
 bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
