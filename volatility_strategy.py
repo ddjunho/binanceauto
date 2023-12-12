@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
+import schedule
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import telepot
 from telepot.loop import MessageLoop
@@ -106,8 +107,17 @@ def calculate_quantity(symbol):
 
 predicted_close_price = 0
 
-def predict_price(df):
+def predict_price():
     """SARIMA로 다음 5분 후 종가 가격 예측"""
+    candles = exchange.fetch_ohlcv(
+            symbol=symbol,
+            timeframe=timeframe,
+            since=None,
+            limit=50
+        )
+
+    df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     global predicted_close_price
     
     # SARIMA 모델에 사용할 열 선택 및 이름 변경
@@ -134,6 +144,8 @@ def predict_price(df):
     # 예측된 종가 출력
     close_value = forecast.predicted_mean.iloc[0]
     predicted_close_price = close_value
+    
+schedule.every(5).minutes.do(predict_price)
 
 # 변동성 돌파 전략을 적용한 매매 로직
 def volatility_breakout_strategy(symbol, df, k_value):
@@ -175,9 +187,8 @@ while True:
             df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             
-            # 종가 예측 실행
-            predict_price(df)
             # 변동성 돌파 전략 실행
+            schedule.run_pending()
             volatility_breakout_strategy(symbol, df, k_value)
             
             # 대기 시간
