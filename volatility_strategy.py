@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
+from fbprophet import Prophet
 import telepot
 from telepot.loop import MessageLoop
 
