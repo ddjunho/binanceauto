@@ -157,26 +157,42 @@ schedule.every(5).minutes.do(predict_price)
 # 변동성 돌파 전략을 적용한 매매 로직
 def volatility_breakout_strategy(symbol, df, k_value):
     # 변동성 돌파 전략
-    df['range'] = df['high'].iloc[-2] - df['low'].iloc[-2]
-    df['target'] = df['open'].iloc[-1] + df['range'].shift(1) + k_value
-    df['buy_signal'] = np.where(df['high'].iloc[-1] > df['target'], 1, 0)
-    df['sell_signal'] = np.where(df['low'].iloc[-1] < df['target'], 1, 0)
-    
-    # 매수 및 매도 주문
-    for index, row in df.iterrows():
-        if row['buy_signal'] == 1:
-            if predicted_close_price>df['high'].iloc[-1]:
-                quantity = calculate_quantity(symbol)
-                if quantity:
-                    place_limit_order(symbol, 'buy', quantity, row['open'])
-                    send_to_telegram(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
+    df['range'] = (df['high'].iloc[-2] - df['low'].iloc[-2])*k_value
+    df['target_long'] = df['open'].iloc[-1] + df['range'].shift(1)
+    df['target_short'] = df['open'].iloc[-1] - df['range'].shift(1)
+    df['buy_signal'] = np.where(df['high'].iloc[-1] > df['target_long'], 1, 0)
+    df['sell_signal'] = np.where(df['low'].iloc[-1] < df['target_short'], 1, 0)
+    long_stop_loss = df['low'].iloc[-2]
+    short_stop_loss = df['high'].iloc[-2]
 
-        elif row['sell_signal'] == 1:
-            if predicted_close_price<df['low'].iloc[-1]:
-                quantity = calculate_quantity(symbol)
-                if quantity:
-                    place_limit_order(symbol, 'sell', quantity, row['open'])
-                    send_to_telegram(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
+    # 매수 및 매도 주문
+    if df['high'].iloc[-1] > df['target_long']:
+        if predicted_close_price>df['close'].iloc[-1]:
+            quantity = calculate_quantity(symbol)
+            place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
+            send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
+        else:
+            quantity = calculate_quantity(symbol)
+            place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
+            send_to_telegram(f"포지션 종료 - Quantity: {quantity}")
+    elif df['sell_signal'] == 1:
+        if predicted_close_price<df['close'].iloc[-1]:
+            quantity = calculate_quantity(symbol)
+            place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
+            send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
+        else:
+            quantity = calculate_quantity(symbol)
+            place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
+            send_to_telegram(f"포지션 종료 - Quantity: {quantity}")
+    #손절
+    if df['close'].iloc[-1]<long_stop_loss:
+        quantity = calculate_quantity(symbol)
+        place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
+        send_to_telegram(f"손절 - Quantity: {quantity}")
+    elif df['close'].iloc[-1]>short_stop_loss:
+        quantity = calculate_quantity(symbol)
+        place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
+        send_to_telegram(f"손절 - Quantity: {quantity}")
 
 # 매매 주기 (예: 5분마다 전략 실행)
 trade_interval = 1  # 초 단위
