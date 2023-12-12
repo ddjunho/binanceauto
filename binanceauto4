@@ -107,14 +107,14 @@ def volatility_breakout_strategy(symbol, df, k_value):
     # 매수 및 매도 주문
     for index, row in df.iterrows():
         if row['buy_signal'] == 1:
-            if predicted_close_price>df['high'].iloc[-1]
+            if predicted_close_price>df['high'].iloc[-1]:
                 quantity = calculate_quantity(symbol)
                 if quantity:
                     place_limit_order(symbol, 'buy', quantity, row['open'])
                     print(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
 
         elif row['sell_signal'] == 1:
-            if predicted_close_price<df['low'].iloc[-1]
+            if predicted_close_price<df['low'].iloc[-1]:
                 quantity = calculate_quantity(symbol)
                 if quantity:
                     place_limit_order(symbol, 'sell', quantity, row['open'])
