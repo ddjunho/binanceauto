@@ -63,45 +63,82 @@ def calculate_quantity(symbol):
         send_to_telegram(error_message)
         return None
 
+predicted_close_price = 0
+
+def predict_price(df):
+    """Prophet으로 다음 5분 후 종가 가격 예측"""
+    global predicted_close_price
+    
+    # Prophet 모델에 사용할 열 선택 및 이름 변경
+    df = df.rename(columns={'timestamp': 'ds', 'open': 'open', 'high': 'high', 'low': 'low', 'close': 'y', 'volume': 'volume'})
+    
+    # Prophet 모델 초기화 및 학습
+    model = Prophet()
+    model.add_regressor('open')
+    model.add_regressor('high')
+    model.add_regressor('low')
+    model.add_regressor('volume')
+    
+    model.fit(df)
+    
+    # 다음 5분 후를 예측할 데이터 프레임 생성
+    future = model.make_future_dataframe(periods=1, freq='5T')
+    future['open'] = df['open'].iloc[-1]
+    future['high'] = df['high'].iloc[-1]
+    future['low'] = df['low'].iloc[-1]
+    future['volume'] = df['volume'].iloc[-1]
+    
+    # 예측 수행
+    forecast = model.predict(future)
+    
+    # 예측된 종가 출력
+    close_value = forecast.iloc[-1]['yhat']
+    predicted_close_price = close_value
+
+
 # 변동성 돌파 전략을 적용한 매매 로직
-def volatility_breakout_strategy(symbol, timeframe, k_value):
-    candles = exchange.fetch_ohlcv(
-        symbol=symbol,
-        timeframe=timeframe,
-        since=None,
-        limit=50
-    )
-
-    df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-
+def volatility_breakout_strategy(symbol, df, k_value):
     # 변동성 돌파 전략
     df['range'] = df['high'].iloc[-2] - df['low'].iloc[-2]
     df['target'] = df['open'].iloc[-1] + df['range'].shift(1) + k_value
     df['buy_signal'] = np.where(df['high'].iloc[-1] > df['target'], 1, 0)
     df['sell_signal'] = np.where(df['low'].iloc[-1] < df['target'], 1, 0)
-
+    
     # 매수 및 매도 주문
     for index, row in df.iterrows():
         if row['buy_signal'] == 1:
-            quantity = calculate_quantity(symbol)
-            if quantity:
-                place_limit_order(symbol, 'buy', quantity, row['open'])
-                print(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
+            if predicted_close_price>df['high'].iloc[-1]
+                quantity = calculate_quantity(symbol)
+                if quantity:
+                    place_limit_order(symbol, 'buy', quantity, row['open'])
+                    print(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
 
         elif row['sell_signal'] == 1:
-            quantity = calculate_quantity(symbol)
-            if quantity:
-                place_limit_order(symbol, 'sell', quantity, row['open'])
-                print(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
+            if predicted_close_price<df['low'].iloc[-1]
+                quantity = calculate_quantity(symbol)
+                if quantity:
+                    place_limit_order(symbol, 'sell', quantity, row['open'])
+                    print(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
 
 # 매매 주기 (예: 5분마다 전략 실행)
 trade_interval = 300  # 초 단위
 
 while True:
     try:
+        candles = exchange.fetch_ohlcv(
+            symbol=symbol,
+            timeframe=timeframe,
+            since=None,
+            limit=50
+        )
+    
+        df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        
+        # 종가 예측 실행
+        predict_price(df)
         # 변동성 돌파 전략 실행
-        volatility_breakout_strategy(symbol, timeframe, k_value)
+        volatility_breakout_strategy(symbol, df, k_value)
         
         # 대기 시간
         print(f"Waiting for {trade_interval} seconds...")
