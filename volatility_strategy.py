@@ -52,13 +52,13 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram('/start - 시작\n/stop - 중지\n/set_k - k 값을 설정\n 예시: /set_k 5.5')
+            send_to_telegram('/start - 시작\n/stop - 중지\n/set_k - k 값을 설정\n 예시: /set_k_5.5')
 
         # 추가된 부분
         elif msg['text'].startswith('/set_k'):
             try:
-                # 예시: /set_k 5.5
-                new_k_value = float(msg['text'].split(' ')[1])
+                # 예시: /set_k_5.5
+                new_k_value = float(msg['text'].split('_')[1])
                 k_value = new_k_value
                 send_to_telegram(f'k 값을 {k_value}로 설정하였습니다.')
             except Exception as e:
