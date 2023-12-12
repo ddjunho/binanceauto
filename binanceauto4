@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
+from telepot.loop import MessageLoop
+
+bot = telepot.Bot(token="6296102104:AAFC4ddbh7gSgkGOdysFqEBUkIoWXw0-g5A")
+chat_id = "5820794752"
 
 # Binance API 설정
 from binance_keys import api_key, api_secret
@@ -24,6 +28,27 @@ timeframe = '5m'
 # 레버리지 설정
 leverage = 5
 exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage})
+
+# 텔레그램으로 메시지를 보내는 함수
+def send_to_telegram(message):
+    try:
+        bot.sendMessage(chat_id, message)
+    except Exception as e:
+        send_to_telegram(f"An error occurred while sending to Telegram: {e}")
+
+stop = False
+def handle(msg):
+    global stop
+    content_type, chat_type, chat_id = telepot.glance(msg)
+    if content_type == 'text':
+        if msg['text'] == '/start':
+            send_to_telegram('Starting...')
+            stop = False
+        elif msg['text'] == '/stop':
+            send_to_telegram('Stopping...')
+            stop = True
+        elif msg['text'] == '/help':
+            send_to_telegram('/start - 시작\n/stop - 중지')
 
 # 매수 및 매도 주문 함수 정의
 def place_limit_order(symbol, side, amount, price):
@@ -111,17 +136,17 @@ def volatility_breakout_strategy(symbol, df, k_value):
                 quantity = calculate_quantity(symbol)
                 if quantity:
                     place_limit_order(symbol, 'buy', quantity, row['open'])
-                    print(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
+                    send_to_telegram(f"Buy Order - Price: {row['open']}, Quantity: {quantity}")
 
         elif row['sell_signal'] == 1:
             if predicted_close_price<df['low'].iloc[-1]:
                 quantity = calculate_quantity(symbol)
                 if quantity:
                     place_limit_order(symbol, 'sell', quantity, row['open'])
-                    print(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
+                    send_to_telegram(f"Sell Order - Price: {row['open']}, Quantity: {quantity}")
 
 # 매매 주기 (예: 5분마다 전략 실행)
-trade_interval = 300  # 초 단위
+trade_interval = 1  # 초 단위
 
 while True:
     try:
@@ -141,10 +166,12 @@ while True:
         volatility_breakout_strategy(symbol, df, k_value)
         
         # 대기 시간
-        print(f"Waiting for {trade_interval} seconds...")
+        send_to_telegram(f"Waiting for {trade_interval} seconds...")
         time.sleep(trade_interval)
         
     except Exception as e:
-        # 예외 처리: 오류가 발생하면 로그를 출력하고 계속 진행
-        print(f"An error occurred: {e}")
-        continue
+        send_to_telegram(f"An error occurred: {e}")
+        count+=1
+        if count==10:
+            stop = True
+        pass
