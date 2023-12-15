@@ -53,7 +53,7 @@ def handle(msg):
             send_to_telegram(f'{symbol} Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/{symbol}start - 시작\n/{symbol}stop - 중지\n//band_range(range) - 밴드의 범위를 설정\n 현재값 : {band_range}')
+            send_to_telegram(f'/{symbol}start - 시작\n/{symbol}stop - 중지\n/band_range(range) - 밴드의 범위를 설정\n 현재값 : {band_range}')
         elif msg['text'] == '/band_range(4)':
             band_range = 4
         elif msg['text'] == '/band_range(4.5)':
