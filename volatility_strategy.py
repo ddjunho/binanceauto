@@ -160,39 +160,54 @@ def volatility_breakout_strategy(symbol, df, k_value):
     df['range'] = (df['high'].iloc[-2] - df['low'].iloc[-2])*k_value
     df['target_long'] = df['open'].iloc[-1] + df['range'].shift(1)
     df['target_short'] = df['open'].iloc[-1] - df['range'].shift(1)
-    df['buy_signal'] = np.where(df['high'].iloc[-1] > df['target_long'], 1, 0)
-    df['sell_signal'] = np.where(df['low'].iloc[-1] < df['target_short'], 1, 0)
+    global buy_signal
+    global sell_signal
+    global long_stop_loss
+    global short_stop_loss
+    global future_close_price
+    buy_signal = False
+    sell_signal = False
     long_stop_loss = df['low'].iloc[-2]
     short_stop_loss = df['high'].iloc[-2]
-
     # 매수 및 매도 주문
     if df['high'].iloc[-1] > df['target_long']:
-        if predicted_close_price>df['close'].iloc[-1]:
-            quantity = calculate_quantity(symbol)
-            place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
-        else:
+        if buy_signal == False:
+            if predicted_close_price>df['close'].iloc[-1]:
+                quantity = calculate_quantity(symbol)
+                place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
+                send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
+                future_close_price = predicted_close_price
+                buy_signal = True
+                send_to_telegram(f"예측가 - {future_close_price}")
+    elif df['low'].iloc[-1] < df['target_short']:
+        if sell_signal == False:
+            if predicted_close_price<df['close'].iloc[-1]:
+                quantity = calculate_quantity(symbol)
+                place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
+                send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
+                future_close_price = predicted_close_price
+                sell_signal = True
+                send_to_telegram(f"예측가 - {future_close_price}")
+
+    if buy_signal == True:
+        if future_close_price<df['close'].iloc[-1]:
             quantity = calculate_quantity(symbol)
             place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"포지션 종료 - Quantity: {quantity}")
-    elif df['sell_signal'] == 1:
-        if predicted_close_price<df['close'].iloc[-1]:
-            quantity = calculate_quantity(symbol)
-            place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
-        else:
+            send_to_telegram(f"롱포지션 종료 - Quantity: {quantity}")
+    elif sell_signal == True:
+        if future_close_price>df['close'].iloc[-1]:
             quantity = calculate_quantity(symbol)
             place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"포지션 종료 - Quantity: {quantity}")
+            send_to_telegram(f"숏포지션 종료 - Quantity: {quantity}")    
     #손절
     if df['close'].iloc[-1]<long_stop_loss:
         quantity = calculate_quantity(symbol)
         place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-        send_to_telegram(f"손절 - Quantity: {quantity}")
+        send_to_telegram(f"롱포지션 손절 - Quantity: {quantity}")
     elif df['close'].iloc[-1]>short_stop_loss:
         quantity = calculate_quantity(symbol)
         place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-        send_to_telegram(f"손절 - Quantity: {quantity}")
+        send_to_telegram(f"숏포지션 손절 - Quantity: {quantity}")
 
 # 매매 주기 (예: 5분마다 전략 실행)
 trade_interval = 1  # 초 단위
