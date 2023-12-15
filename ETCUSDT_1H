@@ -39,9 +39,11 @@ def send_to_telegram(message):
         print(f"An error occurred while sending to Telegram: {e}")
 
 stop = False
+band_range = 5
 def handle(msg):
     global stop
     global follow
+    global band_range
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == f'/{symbol}start':
@@ -51,7 +53,21 @@ def handle(msg):
             send_to_telegram(f'{symbol} Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/{symbol}start - 시작\n/{symbol}stop - 중지')
+            send_to_telegram(f'/{symbol}start - 시작\n/{symbol}stop - 중지\n//band_range(range) - 밴드의 범위를 설정\n 현재값 : {band_range}')
+        elif msg['text'] == '/band_range(4)':
+            band_range = 4
+        elif msg['text'] == '/band_range(4.5)':
+            band_range = 4.5
+        elif msg['text'] == '/band_range(5)':
+            band_range = 5
+        elif msg['text'] == '/band_range(5.5)':
+            band_range = 5.5
+        elif msg['text'] == '/band_range(6)':
+            band_range = 6
+        elif msg['text'] == '/band_range(6.5)':
+            band_range = 6.5
+        elif msg['text'] == '/band_range(7)':
+            band_range = 7
 
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
@@ -146,7 +162,6 @@ def calculate_bollinger_bands(data, window, num_std_dev):
     return upper_band, lower_band
 
 
-
 long_trade_executed = False
 short_trade_executed = False
 trend_follow_long = False
@@ -165,11 +180,9 @@ def execute_strategy(data, window, num_std_dev, ema_period):
     global short_quantity
     global volume_oscillator1
     global volume_oscillator2
-    global following
     global trend_follow_long
     global trend_follow_short
     global stop_loss
-    global stop_profit
     global sell_future
     global buy_future
     global sell_status_future
@@ -184,10 +197,17 @@ def execute_strategy(data, window, num_std_dev, ema_period):
         if not short_trade_executed:
             if data['high'].iloc[-1] >= upper_band.iloc[-1]:
             # 이전 캔들의 고가가 상단 밴드를 돌파한 경우 공매도
-                if (upper_band.iloc[-1] - lower_band.iloc[-1])/current_price*100>=5:
+                if (upper_band.iloc[-1] - lower_band.iloc[-1])/(upper_band.iloc[-1] + lower_band.iloc[-1])*50>=band_range:
                     short_trade_executed = True
-                    short_quantity = calculate_quantity(symbol)*(leverage-0.2)
-                    profit = data['high'].iloc[-1]
+                    volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float))
+                    volume_oscillator1 = volume_oscillator.iloc[-1]
+                    volume_oscillator2 = volume_oscillator.iloc[-2]
+                    if volume_oscillator1 >= 40 and volume_oscillator2 <= 40:
+                        short_quantity = calculate_quantity(symbol)*(leverage-5.2)
+                        send_to_telegram(f'{symbol}의 거래량이 폭증.')
+                    else:
+                        short_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                    profit = data['close'].iloc[-1]
                     limit_sell_order = place_limit_order(symbol, 'SELL', short_quantity, profit)
                     now = datetime.now()
                     sell_status_future = now
@@ -196,10 +216,17 @@ def execute_strategy(data, window, num_std_dev, ema_period):
         if not long_trade_executed:
             if data['low'].iloc[-1] <= lower_band.iloc[-1]:
             # 이전 캔들의 저가가 하단 밴드를 돌파한 경우 매수
-                    long_quantity = calculate_quantity(symbol)*(leverage-0.2)
-                    profit = data['low'].iloc[-1] 
+                if (upper_band.iloc[-1] - lower_band.iloc[-1])/(upper_band.iloc[-1] + lower_band.iloc[-1])*50>=band_range:
+                    volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float))
+                    volume_oscillator1 = volume_oscillator.iloc[-1]
+                    volume_oscillator2 = volume_oscillator.iloc[-2]
+                    if volume_oscillator1 >= 40 and volume_oscillator2 <= 40:
+                        long_quantity = calculate_quantity(symbol)*(leverage-5.2)
+                        send_to_telegram(f'{symbol}의 거래량이 폭증.')
+                    else:
+                        long_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                    profit = data['close'].iloc[-1]
                     limit_buy_order = place_limit_order(symbol, 'BUY', long_quantity, profit)
-                    long_trade_executed = True
                     now = datetime.now()
                     buy_status_future = now
                     buy_future = now + timedelta(hours=4)
@@ -299,20 +326,7 @@ while True:
             df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
-            time.sleep(30)          
-            volume_oscillator = calculate_volume_oscillator(df['volume'].astype(float))
-            volume_oscillator1 = volume_oscillator.iloc[-1]
-            volume_oscillator2 = volume_oscillator.iloc[-2]
-            if volume_oscillator1 >= 40 and volume_oscillator2 <= 40:
-                time.sleep(60*60)
-                candles = exchange.fetch_ohlcv(
-                symbol=symbol,
-                timeframe=timeframe,
-                since=None,
-                limit=50
-                )
-                df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            time.sleep(10)          
             # 전략 실행
             execute=execute_strategy(df, window=20, num_std_dev=3.2, ema_period=9)
             #print(execute)
