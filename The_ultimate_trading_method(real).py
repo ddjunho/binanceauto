@@ -3,11 +3,20 @@ import numpy as np
 import random as rand
 from bayes_opt import BayesianOptimization
 import matplotlib.pyplot as plt
-
+import ccxt
+from binance_keys import api_key, api_secret
 ################ 백테스트 ################
 
 # 백테스트 기본 셋팅
-
+exchange = ccxt.binance({
+    'rateLimit': 1000,
+    'enableRateLimit': True,
+    'apiKey': api_key,
+    'secret': api_secret,
+    'options': {
+        'defaultType': 'future'
+    }
+})
 symbol = 'ETHUSDT'
 timeframe = '5m'# 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
 
@@ -30,12 +39,12 @@ def VBS(df, config_data):
     k = config_data['k']
 
     # 목표가 구하기
-    df['range'] = df['High'] - df['Low']  # 고저 변동폭
-    df['target'] = df['Open'] + df['range'].shift(1) * k  # 목표가 한칸 내려주고 (shift), 이후 k값을 곱한 목표가 계산
+    df['range'] = df['high'] - df['low']  # 고저 변동폭
+    df['target'] = df['open'] + df['range'].shift(1) * k  # 목표가 한칸 내려주고 (shift), 이후 k값을 곱한 목표가 계산
     # df = df.iloc[1:-2]
 
     # 매수 시뮬레이션
-    df['ror'] = np.where(df['High'] > df['target'], df['Close'] / df['target'],
+    df['ror'] = np.where(df['high'] > df['target'], df['close'] / df['target'],
                          1)  # high > target인 지점에서 close / target
 
     # 최종 누적 산출
@@ -100,12 +109,12 @@ max_beyes_k = target_list[0][-1].get('k')
 def VBS_opt(df, k):
 
     # 목표가 구하기
-    df['range'] = df['High'] - df['Low']  # 고저 변동폭
-    df['target'] = df['Open'] + df['range'].shift(1) * k  # 목표가 한칸 내려주고 (shift), 이후 k값을 곱한 목표가 계산
+    df['range'] = df['high'] - df['low']  # 고저 변동폭
+    df['target'] = df['open'] + df['range'].shift(1) * k  # 목표가 한칸 내려주고 (shift), 이후 k값을 곱한 목표가 계산
     # df = df.iloc[1:-2]
 
     # 매수 시뮬레이션
-    df['ror'] = np.where(df['High'] > df['target'], df['Close'] / df['target'],
+    df['ror'] = np.where(df['high'] > df['target'], df['close'] / df['target'],
                          1)  # high > target인 지점에서 close / target
 
     # 최종 누적 산출
