@@ -10,14 +10,13 @@ import matplotlib.pyplot as plt
 
 symbol = 'ETHUSDT'
 timeframe = '5m'# 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
-year = 'All' 
 
 # 데이터 읽어오기: 전체 데이터
 candles = exchange.fetch_ohlcv(
                 symbol=symbol,
                 timeframe=timeframe,
                 since=None,
-                limit=50
+                limit=500
             )
         
 df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
