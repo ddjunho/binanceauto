@@ -52,7 +52,7 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}\n/after_1m - 1분뒤 가격예측\n/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
         elif msg['text'] == '/set(0.35)':
             k_value = 0.35
         elif msg['text'] == '/set(0.4)':
@@ -79,7 +79,7 @@ def handle(msg):
             send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
             send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
             send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
-        elif msg['text'] == '/after_5m':
+        elif msg['text'] == '/after_3m':
             send_to_telegram('모델학습 및 예측 중...')
             predict_price(prediction_time='3m')
             send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
@@ -160,7 +160,7 @@ def predict_price(prediction_time='1h'):
             symbol=symbol,
             timeframe=prediction_time,
             since=None,
-            limit=50
+            limit=200
         )
 
     df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -177,8 +177,12 @@ def predict_price(prediction_time='1h'):
     model = auto_arima(df['y'], seasonal=False, suppress_warnings=True)
     
     # 다음 n분 후를 예측할 데이터 포인트 생성
-    if prediction_time == '5m':
-        minutes_to_add = 5
+    if prediction_time == '1m':
+        minutes_to_add = 1
+    elif prediction_time == '3m':
+        minutes_to_add = 3
+    elif prediction_time == '5m':
+        minutes_to_add = 5    
     elif prediction_time == '15m':
         minutes_to_add = 15
     elif prediction_time == '1h':
