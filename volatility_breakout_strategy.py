@@ -219,6 +219,8 @@ schedule.every(1).hours.do(reset_signals)
 signal = False
 buy_signal = False
 sell_signal = False
+waiting_buy_signal = False
+waiting_sell_signal = False
 # 변동성 돌파 전략을 적용한 매매 로직
 def volatility_breakout_strategy(symbol, df, k_value):
     # 변동성 돌파 전략
