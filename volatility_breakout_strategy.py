@@ -238,54 +238,70 @@ def volatility_breakout_strategy(symbol, df, k_value):
     global long_quantity
     global short_quantity
     global limit_order
-    range = (df['high'].iloc[-2] - df['low'].iloc[-2])*k_value
+
+    # 변동성 범위 계산
+    range = (df['high'].iloc[-2] - df['low'].iloc[-2]) * k_value
+    # 롱(매수) 목표가 및 숏(매도) 목표가 설정
     target_long = df['close'].iloc[-2] + range
     target_short = df['close'].iloc[-2] - range
-    # 매수 및 매도 주문
+
+    # 매수 및 매도 주문 로직
     if buy_signal == False:
+        # 어제 종가보다 오늘 시가가 높고, 오늘 고가가 목표 롱 가격을 돌파한 경우
         if df['open'].iloc[-2] < df['close'].iloc[-2]:
             if df['high'].iloc[-1] > target_long:
                 if waiting_buy_signal == False:
+                    # 3분 뒤 가격 예측 및 텔레그램 전송
                     predict_price(prediction_time='3m')
                     send_to_telegram(f"돌파가격 : {target_long}")
                     predicted_buy_low_price = predicted_low_price
                     send_to_telegram(f"최적매수가격 : {predicted_buy_low_price}")
                     waiting_buy_signal = True
-                if df['close'].iloc[-1]<predicted_buy_low_price:
-                    long_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                # 현재 가격이 예측한 최적 매수가격보다 낮으면 매수 주문 실행
+                if df['close'].iloc[-1] < predicted_buy_low_price:
+                    long_quantity = calculate_quantity(symbol) * (leverage - 0.2)
                     place_limit_order(symbol, 'buy', long_quantity, df['close'].iloc[-1])
                     long_stop_loss = df['low'].iloc[-1]
                     limit_order = send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {long_quantity}")
                     buy_signal = True
                     waiting_buy_signal = False
+                    # 1시간 뒤의 가격 예측
                     predict_price(prediction_time='1h')
-                    future_close_price = predicted_high_price #과매수
+                    future_close_price = predicted_high_price  # 과매수
                     entry_time = datetime.datetime.now()
+
     if sell_signal == False:
+        # 어제 종가보다 오늘 시가가 낮고, 오늘 저가가 목표 숏 가격을 돌파한 경우
         if df['open'].iloc[-2] > df['close'].iloc[-2]:
             if df['low'].iloc[-1] < target_short:
                 if waiting_sell_signal == False:
+                    # 3분 뒤 가격 예측 및 텔레그램 전송
                     predict_price(prediction_time='3m')
                     send_to_telegram(f"돌파가격 : {target_short}")
                     predicted_sell_high_price = predicted_high_price
                     send_to_telegram(f"최적매도가격 : {predicted_sell_high_price}")
                     waiting_sell_signal = True
+                # 현재 가격이 예측한 최적 매도가격보다 높으면 매도 주문 실행
                 if df['close'].iloc[-1] > predicted_sell_high_price:
-                    short_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                    short_quantity = calculate_quantity(symbol) * (leverage - 0.2)
                     limit_order = place_limit_order(symbol, 'sell', short_quantity, df['close'].iloc[-1])
                     short_stop_loss = df['high'].iloc[-1]
                     send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {short_quantity}")
                     sell_signal = True
                     waiting_sell_signal = False
+                    # 1시간 뒤의 가격 예측
                     predict_price(prediction_time='1h')
-                    future_close_price = predicted_low_price #과매도
+                    future_close_price = predicted_low_price  # 과매도
                     entry_time = datetime.datetime.now()
 
+    # 매수 또는 매도 신호가 발생한 경우
     if buy_signal or sell_signal:
+        # 주문 정보 가져오기
         order_info = exchange.fetch_order(limit_order['id'], symbol)
         order_status = order_info['status']
-        if order_status == 'open':            
-            if buy_signal and (datetime.datetime.now() >=  entry_time + datetime.timedelta(hours=(1 - entry_time.hour % 1 - 1/60))):
+        if order_status == 'open':
+            # 지정된 시간이 경과하면 주문을 종료하고 이익을 실현
+            if buy_signal and (datetime.datetime.now() >= entry_time + datetime.timedelta(hours=(1 - entry_time.hour % 1 - 1/60))):
                 place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
                 send_to_telegram(f"롱포지션 종료 - Quantity: {long_quantity}")
                 buy_signal = False
@@ -297,17 +313,19 @@ def volatility_breakout_strategy(symbol, df, k_value):
                 sell_signal = False
                 waiting_sell_signal = False
 
+            # 과매수시 포지션 종료
             if buy_signal == True:
-                if future_close_price<df['close'].iloc[-1]:
+                if future_close_price < df['close'].iloc[-1]:
                     place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
                     send_to_telegram(f"롱포지션 종료 - Quantity: {long_quantity}")
                     buy_signal = False
                     waiting_buy_signal = False
 
+            # 과매도시 포지션 종료
             elif sell_signal == True:
-                if future_close_price>df['close'].iloc[-1]:
+                if future_close_price > df['close'].iloc[-1]:
                     place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
-                    send_to_telegram(f"숏포지션 종료 - Quantity: {short_quantity}")    
+                    send_to_telegram(f"숏포지션 종료 - Quantity: {short_quantity}")
                     sell_signal = False
                     waiting_sell_signal = False
 
