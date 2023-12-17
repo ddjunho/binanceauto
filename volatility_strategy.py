@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import ccxt
 import time
-import schedule
-from statsmodels.tsa.statespace.sarimax import SARIMAX
+import datetime
+from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
@@ -25,8 +25,8 @@ exchange = ccxt.binance({
 })
 
 # 트레이딩 페어 및 타임프레임 설정
-symbol = 'ETHUSDT'
-timeframe = '5m'
+symbol = 'XRPUSDT'
+timeframe = '1h'
 
 # 레버리지 설정
 leverage = 5
@@ -40,7 +40,7 @@ def send_to_telegram(message):
         send_to_telegram(f"An error occurred while sending to Telegram: {e}")
 
 stop = False
-k_value = 5.5
+k_value = 0.35
 def handle(msg):
     global stop, k_value
     content_type, chat_type, chat_id = telepot.glance(msg)
@@ -52,25 +52,64 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}')
-        elif msg['text'] == '/set(4)':
-            k_value = 4
-        elif msg['text'] == '/set(4.5)':
-            k_value = 4.5
-        elif msg['text'] == '/set(5)':
-            k_value = 5
-        elif msg['text'] == '/set(5.5)':
-            k_value = 5.5
-        elif msg['text'] == '/set(6)':
-            k_value = 6
-        elif msg['text'] == '/set(6.5)':
-            k_value = 6.5
-        elif msg['text'] == '/set(7)':
-            k_value = 7
-        elif msg['text'] == '/set(7.5)':
-            k_value = 7.5
-        elif msg['text'] == '/set(8)':
-            k_value = 8
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
+        elif msg['text'] == '/set(0.35)':
+            k_value = 0.35
+        elif msg['text'] == '/set(0.4)':
+            k_value = 0.4
+        elif msg['text'] == '/set(0.45)':
+            k_value = 0.45
+        elif msg['text'] == '/set(0.5)':
+            k_value = 0.5
+        elif msg['text'] == '/set(0.55)':
+            k_value = 0.55
+        elif msg['text'] == '/set(0.6)':
+            k_value = 0.6
+        elif msg['text'] == '/set(0.65)':
+            k_value = 0.65
+        elif msg['text'] == '/set(0.7)':
+            k_value = 0.7
+        elif msg['text'] == '/set(0.75)':
+            k_value = 0.75
+        elif msg['text'] == '/set(0.8)':
+            k_value = 0.8
+        elif msg['text'] == '/after_1m':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='1m')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+        elif msg['text'] == '/after_5m':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='3m')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+        elif msg['text'] == '/after_5m':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='5m')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+        elif msg['text'] == '/after_15m':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='15m')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+        elif msg['text'] == '/after_1h':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='1h')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+        elif msg['text'] == '/after_1d':
+            send_to_telegram('모델학습 및 예측 중...')
+            predict_price(prediction_time='1d')
+            send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
+            send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
+            send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
+            
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
 
@@ -114,103 +153,128 @@ def calculate_quantity(symbol):
 
 predicted_close_price = 0
 
-def predict_price():
-    """SARIMA로 다음 5분 후 종가 가격 예측"""
+
+def predict_price(prediction_time='1h'):
+    """Auto ARIMA로 다음 종가, 고가, 저가 가격 예측"""
     candles = exchange.fetch_ohlcv(
             symbol=symbol,
-            timeframe=timeframe,
+            timeframe=prediction_time,
             since=None,
             limit=50
         )
 
     df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    global predicted_close_price
+    global predicted_close_price, predicted_high_price, predicted_low_price
     
-    # SARIMA 모델에 사용할 열 선택 및 이름 변경
+    # ARIMA 모델에 사용할 열 선택 및 이름 변경
     df = df.rename(columns={'timestamp': 'ds', 'open': 'open', 'high': 'high', 'low': 'low', 'close': 'y', 'volume': 'volume'})
     
     # 데이터프레임에서 시간 열을 인덱스로 설정
     df.set_index('ds', inplace=True)
     
-    # SARIMA 모델 초기화 및 학습
-    order = (1, 1, 1)  # (p, d, q): ARIMA의 차수
-    model = SARIMAX(df['y'], order=order)
-    results = model.fit(disp=False)
+    # Auto ARIMA 모델 초기화 및 학습
+    model = auto_arima(df['y'], seasonal=False, suppress_warnings=True)
     
-    # 다음 5분 후를 예측할 데이터 포인트 생성
-    future = pd.DataFrame(index=[df.index[-1] + pd.Timedelta(minutes=5)])
+    # 다음 n분 후를 예측할 데이터 포인트 생성
+    if prediction_time == '5m':
+        minutes_to_add = 5
+    elif prediction_time == '15m':
+        minutes_to_add = 15
+    elif prediction_time == '1h':
+        minutes_to_add = 60
+    elif prediction_time == '1d':
+        minutes_to_add = 24 * 60
+        
+    future = pd.DataFrame(index=[df.index[-1] + pd.Timedelta(minutes=minutes_to_add)])
     future['open'] = df['open'].iloc[-1]
     future['high'] = df['high'].iloc[-1]
     future['low'] = df['low'].iloc[-1]
     future['volume'] = df['volume'].iloc[-1]
     
     # 예측 수행
-    forecast = results.get_forecast(steps=1, exog=future)
+    forecast, conf_int = model.predict(n_periods=1, exogenous=[future.values], return_conf_int=True)
     
-    # 예측된 종가 출력
-    close_value = forecast.predicted_mean.iloc[0]
+    # 예측된 종가, 고가, 저가 출력
+    close_value = forecast[0]
     predicted_close_price = close_value
     
-schedule.every(5).minutes.do(predict_price)
+    # 다음과 같이 최대값과 최소값을 구할 수 있습니다.
+    predicted_high_price = conf_int[0][1]
+    predicted_low_price = conf_int[0][0]
 
+
+    
+buy_signal = False
+sell_signal = False
 # 변동성 돌파 전략을 적용한 매매 로직
 def volatility_breakout_strategy(symbol, df, k_value):
     # 변동성 돌파 전략
-    df['range'] = (df['high'].iloc[-2] - df['low'].iloc[-2])*k_value
-    df['target_long'] = df['open'].iloc[-1] + df['range'].shift(1)
-    df['target_short'] = df['open'].iloc[-1] - df['range'].shift(1)
+    range = (df['high'].iloc[-2] - df['low'].iloc[-2])*k_value
+    target_long = df['close'].iloc[-2] + range
+    target_short = df['close'].iloc[-2] - range
     global buy_signal
     global sell_signal
+    global entry_time
     global long_stop_loss
     global short_stop_loss
     global future_close_price
-    buy_signal = False
-    sell_signal = False
-    long_stop_loss = df['low'].iloc[-2]
-    short_stop_loss = df['high'].iloc[-2]
+    global long_quantity
+    global short_quantity
     # 매수 및 매도 주문
-    if df['high'].iloc[-1] > df['target_long']:
-        if buy_signal == False:
-            if predicted_close_price>df['close'].iloc[-1]:
-                quantity = calculate_quantity(symbol)
-                place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-                send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
-                future_close_price = predicted_close_price
-                buy_signal = True
-                send_to_telegram(f"예측가 - {future_close_price}")
-    elif df['low'].iloc[-1] < df['target_short']:
-        if sell_signal == False:
-            if predicted_close_price<df['close'].iloc[-1]:
-                quantity = calculate_quantity(symbol)
-                place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-                send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {quantity}")
-                future_close_price = predicted_close_price
-                sell_signal = True
-                send_to_telegram(f"예측가 - {future_close_price}")
+    if buy_signal == False:
+        if df['open'].iloc[-1] < df['close'].iloc[-1]:
+            if df['high'].iloc[-2] > target_long:
+                predict_price(prediction_time='3m')
+                send_to_telegram(f"최적매수가격 : {predicted_low_price}")
+                if df['close'].iloc[-1]<predicted_low_price:
+                    long_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                    place_limit_order(symbol, 'buy', long_quantity, df['close'].iloc[-1])
+                    long_stop_loss = df['low'].iloc[-1]
+                    send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {long_quantity}")
+                    buy_signal = True
+                    predict_price(prediction_time='1h')
+                    future_close_price = predicted_high_price
+                    entry_time = datetime.datetime.now()
+    elif sell_signal == False:
+        if df['open'].iloc[-1] > df['close'].iloc[-1]:
+            if df['close'].iloc[-1] < target_short:
+                predict_price(prediction_time='3m')
+                send_to_telegram(f"최적매도가격 : {predicted_high_price}")
+                if df['close'].iloc[-1] > predicted_high_price:
+                    short_quantity = calculate_quantity(symbol)*(leverage-0.2)
+                    place_limit_order(symbol, 'sell', short_quantity, df['close'].iloc[-1])
+                    short_stop_loss = df['high'].iloc[-1]
+                    send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {short_quantity}")
+                    sell_signal = True
+                    predict_price(prediction_time='1h')
+                    entry_time = datetime.datetime.now()
+                    future_close_price = predicted_low_price
+
+    if buy_signal and (datetime.datetime.now() >=  entry_time + datetime.timedelta(hours=(1 - entry_time.hour % 1 - 1/60))):
+        place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
+        send_to_telegram(f"롱포지션 종료 - Quantity: {long_quantity}")
+        buy_signal = False
+
+    elif sell_signal and (datetime.datetime.now() >= entry_time + datetime.timedelta(hours=(1 - entry_time.hour % 1 - 1/60))):
+        place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
+        send_to_telegram(f"숏포지션 종료 - Quantity: {short_quantity}")
+        sell_signal = False
 
     if buy_signal == True:
         if future_close_price<df['close'].iloc[-1]:
-            quantity = calculate_quantity(symbol)
-            place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"롱포지션 종료 - Quantity: {quantity}")
+            place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
+            send_to_telegram(f"롱포지션 종료 - Quantity: {long_quantity}")
+            buy_signal = False
+
     elif sell_signal == True:
         if future_close_price>df['close'].iloc[-1]:
-            quantity = calculate_quantity(symbol)
-            place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-            send_to_telegram(f"숏포지션 종료 - Quantity: {quantity}")    
-    #손절
-    if df['close'].iloc[-1]<long_stop_loss:
-        quantity = calculate_quantity(symbol)
-        place_limit_order(symbol, 'sell', quantity, df['close'].iloc[-1])
-        send_to_telegram(f"롱포지션 손절 - Quantity: {quantity}")
-    elif df['close'].iloc[-1]>short_stop_loss:
-        quantity = calculate_quantity(symbol)
-        place_limit_order(symbol, 'buy', quantity, df['close'].iloc[-1])
-        send_to_telegram(f"숏포지션 손절 - Quantity: {quantity}")
+            place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
+            send_to_telegram(f"숏포지션 종료 - Quantity: {short_quantity}")    
+            sell_signal = False
 
 # 매매 주기 (예: 5분마다 전략 실행)
-trade_interval = 1  # 초 단위
+trade_interval = 2  # 초 단위
 count=0
 while True:
     try:
@@ -226,16 +290,18 @@ while True:
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             
             # 변동성 돌파 전략 실행
-            schedule.run_pending()
             volatility_breakout_strategy(symbol, df, k_value)
             
             # 대기 시간
             time.sleep(trade_interval)
         elif stop:
+            buy_signal = False
+            sell_signal = False
             time.sleep(60)
     except Exception as e:
         send_to_telegram(f"An error occurred: {e}")
         count+=1
         if count==10:
             stop = True
+            count=0
         pass
