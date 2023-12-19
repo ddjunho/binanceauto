@@ -26,8 +26,8 @@ exchange = ccxt.binance({
 })
 
 # 트레이딩 페어 및 타임프레임 설정
-symbol = 'XRPUSDT'
-timeframe = '1h'
+symbol = 'SOLUSDT'
+timeframe = '4h'
 
 # 레버리지 설정
 leverage = 5
@@ -53,9 +53,15 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}\n/after_1m - 1분뒤 가격예측\n/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/set(k) - k 값을 설정\n 현재값 : {k_value}\n/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_4h - 4시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
         elif msg['text'] == '/reset_signals':
             reset_signals
+        elif msg['text'] == '/set(0.2)':
+            k_value = 0.2
+        elif msg['text'] == '/set(0.25)':
+            k_value = 0.25
+        elif msg['text'] == '/set(0.3)':
+            k_value = 0.3
         elif msg['text'] == '/set(0.35)':
             k_value = 0.35
         elif msg['text'] == '/set(0.4)':
@@ -74,11 +80,9 @@ def handle(msg):
             k_value = 0.7
         elif msg['text'] == '/set(0.75)':
             k_value = 0.75
-        elif msg['text'] == '/set(0.8)':
-            k_value = 0.8
-        elif msg['text'] == '/after_1m':
+        elif msg['text'] == '/after_4h':
             send_to_telegram('모델학습 및 예측 중...')
-            predict_price(prediction_time='1m')
+            predict_price(prediction_time='4h')
             send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
             send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
             send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
@@ -180,8 +184,8 @@ def predict_price(prediction_time='1h'):
     model = auto_arima(df['y'], seasonal=False, suppress_warnings=True)
     
     # 다음 n분 후를 예측할 데이터 포인트 생성
-    if prediction_time == '1m':
-        minutes_to_add = 1
+    if prediction_time == '4h':
+        minutes_to_add = 60*4
     elif prediction_time == '3m':
         minutes_to_add = 3
     elif prediction_time == '5m':
@@ -215,7 +219,7 @@ def reset_signals():
     waiting_sell_signal = False
     waiting_buy_signal = False
 
-schedule.every(1).hours.do(reset_signals)
+schedule.every(4).hours.do(reset_signals)
 signal = False
 buy_signal = False
 sell_signal = False
@@ -265,10 +269,11 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     place_limit_order(symbol, 'buy', long_quantity, df['close'].iloc[-1])
                     long_stop_loss = df['low'].iloc[-1]
                     limit_order = send_to_telegram(f"매수 - Price: {df['close'].iloc[-1]}, Quantity: {long_quantity}")
+                    send_to_telegram(f"손절가 - {long_stop_loss}")
                     buy_signal = True
                     waiting_buy_signal = False
                     # 1시간 뒤의 가격 예측
-                    predict_price(prediction_time='1h')
+                    predict_price(prediction_time='4h')
                     future_close_price = predicted_high_price  # 과매수
                     entry_time = datetime.datetime.now()
 
@@ -289,6 +294,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     limit_order = place_limit_order(symbol, 'sell', short_quantity, df['close'].iloc[-1])
                     short_stop_loss = df['high'].iloc[-1]
                     send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {short_quantity}")
+                    send_to_telegram(f"손절가 - {short_stop_loss}")
                     sell_signal = True
                     waiting_sell_signal = False
                     # 1시간 뒤의 가격 예측
@@ -349,7 +355,7 @@ while True:
             
             # 변동성 돌파 전략 실행
             volatility_breakout_strategy(symbol, df, k_value)
-            
+            schedule.run_pending()
             # 대기 시간
             time.sleep(trade_interval)
         elif stop:
