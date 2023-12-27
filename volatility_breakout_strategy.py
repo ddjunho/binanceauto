@@ -26,7 +26,7 @@ exchange = ccxt.binance({
 })
 
 # 트레이딩 페어 및 타임프레임 설정
-symbol = 'SOLUSDT'
+symbol = 'ETHUSDT'
 timeframe = '6h'
 
 # 레버리지 설정
@@ -265,7 +265,8 @@ def is_doji_candle(df, threshold=0.2):
     # 도지 캔들 판별 조건
     if body_range < threshold * price_range:
         return True
-    else: False
+    else: 
+        return False
 
 
 def reset_signals():
@@ -313,9 +314,9 @@ def volatility_breakout_strategy(symbol, df, k_value):
     is_doji=is_doji_candle(df)
     # 매수 및 매도 주문 로직
     if buy_signal == False and is_doji == True:
-        if (stoch_rsi_k < 90 and stoch_rsi_d < 85):
-            # 어제 종가보다 오늘 시가가 높고, 오늘 고가가 목표 롱 가격을 돌파한 경우
-            if (df['open'].iloc[-2] < df['close'].iloc[-2]) or (stoch_rsi_k < 5 and stoch_rsi_d < 5):
+        if (stoch_rsi_k.iloc[-1] < 95 and stoch_rsi_d.iloc[-1] < 90):
+            # 어제 종가보다 오늘 시가가 높고, 오늘 고가가 목표 롱 가격을 돌파한 경우 혹은 이중 돌파시
+            if (df['open'].iloc[-2] < df['close'].iloc[-2]) or (df['high'].iloc[-1] > (df['close'].iloc[-2] + ((df['high'].iloc[-2] - df['low'].iloc[-2]) * 0.7))):
                 if df['high'].iloc[-1] > target_long:
                     if waiting_buy_signal == False:
                         # 5분 뒤 가격 예측 및 텔레그램 전송
@@ -336,9 +337,9 @@ def volatility_breakout_strategy(symbol, df, k_value):
                         entry_time = datetime.datetime.now()
 
     if sell_signal == False and is_doji == True:
-        if (stoch_rsi_k > 10 and stoch_rsi_d > 15):
-            # 어제 종가보다 오늘 시가가 낮고, 오늘 저가가 목표 숏 가격을 돌파한 경우
-            if (df['open'].iloc[-2] > df['close'].iloc[-2]) or (stoch_rsi_k > 95 and stoch_rsi_d > 95):
+        if (stoch_rsi_k.iloc[-1] > 5 and stoch_rsi_d.iloc[-1] > 10):
+            # 어제 종가보다 오늘 시가가 낮고, 오늘 저가가 목표 숏 가격을 돌파한 경우 혹은 이중 돌파시
+            if (df['open'].iloc[-2] > df['close'].iloc[-2]) or (df['low'].iloc[-1] < (df['close'].iloc[-2] - ((df['high'].iloc[-2] - df['low'].iloc[-2]) * 0.7))):
                 if df['low'].iloc[-1] < target_short:
                     if waiting_sell_signal == False:
                         # 5분 뒤 가격 예측 및 텔레그램 전송
@@ -394,7 +395,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     send_to_telegram(f"롱포지션 종료 - Quantity: {long_quantity}")
                     buy_signal = False
                     waiting_buy_signal = False
-                elif long_stop_loss > df['close'].iloc[-1] and (stoch_rsi_k > 20 and stoch_rsi_d > 20):
+                elif long_stop_loss > df['close'].iloc[-1] and (stoch_rsi_k.iloc[-1] > 20 and stoch_rsi_d.iloc[-1] > 20):
                     place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
                     send_to_telegram(f"롱포지션 손절 - Quantity: {long_quantity}")
                     buy_signal = False
@@ -407,7 +408,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     send_to_telegram(f"숏포지션 종료 - Quantity: {short_quantity}")
                     sell_signal = False
                     waiting_sell_signal = False
-                elif short_stop_loss < df['close'].iloc[-1] and (stoch_rsi_k < 80 and stoch_rsi_d < 80):
+                elif short_stop_loss < df['close'].iloc[-1] and (stoch_rsi_k.iloc[-1] < 80 and stoch_rsi_d.iloc[-1] < 80):
                     place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
                     send_to_telegram(f"숏포지션 손절 - Quantity: {short_quantity}")
                     sell_signal = False
@@ -448,3 +449,4 @@ while True:
             stop = True
             count=0
         pass
+print("nohup python3 volatility_strategy_binance_auto.py > output.log &")
