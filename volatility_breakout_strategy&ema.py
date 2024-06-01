@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="")
+bot = telepot.Bot(token="7053735235:AAGWphCw4kfKnes2OuvXusDB0_g6FBWzpWQ")
 chat_id = "5820794752"
 
 # Binance API 설정
@@ -183,6 +183,7 @@ def predict_price(prediction_time='1h',add_mintes=0):
     # Auto ARIMA 모델 초기화 및 학습
     model = auto_arima(df['y'], seasonal=False, suppress_warnings=True)
     
+    add_mintes=0
     # 다음 n분 후를 예측할 데이터 포인트 생성
     if prediction_time == '6h':
         minutes_to_add = 60*6 + add_mintes
@@ -278,8 +279,12 @@ def is_doji_candle(df, threshold=0.2):
 
 def reset_signals():
     global waiting_sell_signal, waiting_buy_signal
+    global waiting_ema_buy_signal
+    global waiting_ema_sell_signal
     waiting_sell_signal = False
     waiting_buy_signal = False
+    waiting_ema_buy_signal = False
+    waiting_ema_sell_signal = False
 
 schedule.every().day.at("00:01").do(reset_signals)
 schedule.every().day.at("06:01").do(reset_signals)
@@ -332,8 +337,8 @@ def volatility_breakout_strategy(symbol, df, k_value):
             if (df['open'].iloc[-2] < df['close'].iloc[-2]) or (df['high'].iloc[-1] > target_long2):
                 if df['high'].iloc[-1] > target_long:
                     if waiting_buy_signal == False:
-                        # 5분 뒤 가격 예측 및 텔레그램 전송
-                        predict_price(prediction_time='5m')
+                        # 15분 뒤 가격 예측 및 텔레그램 전송
+                        predict_price(prediction_time='15m')
                         send_to_telegram(f"현재가 : {df['close'].iloc[-1]}")
                         send_to_telegram(f"돌파가격 : {target_long}")
                         predicted_buy_low_price = predicted_low_price
@@ -359,8 +364,8 @@ def volatility_breakout_strategy(symbol, df, k_value):
             if (df['open'].iloc[-2] > df['close'].iloc[-2]) or (df['low'].iloc[-1] < target_short2):
                 if df['low'].iloc[-1] < target_short:
                     if waiting_sell_signal == False:
-                        # 5분 뒤 가격 예측 및 텔레그램 전송
-                        predict_price(prediction_time='5m')
+                        # 15분 뒤 가격 예측 및 텔레그램 전송
+                        predict_price(prediction_time='15m')
                         send_to_telegram(f"현재가 : {df['close'].iloc[-1]}")
                         send_to_telegram(f"돌파가격 : {target_short}")
                         predicted_sell_high_price = predicted_high_price
@@ -458,6 +463,164 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     sell_signal = False
                     waiting_sell_signal = False
 
+ema_buy_signal = False
+ema_sell_signal = False
+waiting_ema_buy_signal = False
+waiting_ema_sell_signal = False
+
+# EMA 기반 트레이딩 전략
+def generate_ema_signals(symbol, df):
+    global waiting_ema_buy_signal
+    global waiting_ema_sell_signal
+    global ema_buy_signal
+    global ema_sell_signal
+    global ema_predicted_buy_low_price
+    global ema_predicted_sell_high_price
+    global ema_entry_time
+    global ema_long_stop_loss
+    global ema_short_stop_loss
+    global ema_future_close_price
+    global ema_long_quantity
+    global ema_short_quantity
+    global ema_limit_order
+    global ema_buy_price
+    global ema_sell_price
+    global ema_profit
+
+    # ema 계산
+    ema_9 = calculate_ema(df, 9)
+    ema_21 = calculate_ema(df, 21)
+    ema_54 = calculate_ema(df, 54)
+    Buy_conditions = ema_9.iloc[-1] > ema_21.iloc[-1]
+    Sell_conditions = ema_9.iloc[-1] < ema_21.iloc[-1]
+    rsi_Buy_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) > (ema_21.iloc[-1] - ema_54.iloc[-1])
+    rsi_Sell_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) < (ema_21.iloc[-1] - ema_54.iloc[-1])
+    Previous_rsi_Buy_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) > (ema_9.iloc[-2] - ema_21.iloc[-2])
+    Previous_rsi_Sell_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) < (ema_9.iloc[-2] - ema_21.iloc[-2])
+    
+    if ema_buy_signal == False and Buy_conditions and rsi_Buy_conditions and Previous_rsi_Buy_conditions:
+        if waiting_ema_buy_signal == False:
+            # 5분 뒤 가격 예측 및 텔레그램 전송
+            predict_price(prediction_time='5m')
+            send_to_telegram(f"현재가 : {df['close'].iloc[-1]}")
+            ema_predicted_buy_low_price = predicted_low_price
+            send_to_telegram(f"최적매수가격 : {ema_predicted_buy_low_price}")
+            waiting_ema_buy_signal = True
+        # 현재 가격이 예측한 최적 매수가격보다 낮으면 매수 주문 실행
+        if df['close'].iloc[-1] < ema_predicted_buy_low_price:
+            ema_long_quantity = calculate_quantity(symbol) * (leverage - 0.2)
+            ema_limit_order = place_limit_order(symbol, 'buy', ema_long_quantity, df['close'].iloc[-1])
+            ema_long_stop_loss = (df['low'].iloc[-1] + df['open'].iloc[-2]) / 2
+            ema_buy_price = df['close'].iloc[-1]
+            send_to_telegram(f"ema조건충족\n매수 - Price: {ema_buy_price}, Quantity: {ema_long_quantity}")
+            send_to_telegram(f"손절가 - {ema_long_stop_loss}")
+            ema_buy_signal = True
+            upper_band, lower_band = calculate_bollinger_bands(df, window=20, num_std_dev=2.5)
+            ema_future_close_price = upper_band.iloc[-1] # 과매수
+            now = datetime.datetime.now()
+            ema_entry_time = datetime.datetime(now.year, now.month, now.day, now.hour, 0)
+    
+    elif ema_sell_signal == False and Sell_conditions and rsi_Sell_conditions and Previous_rsi_Sell_conditions:
+        if waiting_ema_sell_signal == False:
+            # 5분 뒤 가격 예측 및 텔레그램 전송
+            predict_price(prediction_time='5m')
+            send_to_telegram(f"현재가 : {df['close'].iloc[-1]}")
+            ema_predicted_sell_high_price = predicted_high_price
+            send_to_telegram(f"최적매도가격 : {ema_predicted_sell_high_price}")
+            waiting_ema_sell_signal = True
+        # 현재 가격이 예측한 최적 매도가격보다 높으면 매도 주문 실행
+        if df['close'].iloc[-1] > ema_predicted_sell_high_price:
+            ema_short_quantity = calculate_quantity(symbol) * (leverage - 0.2)
+            ema_limit_order = place_limit_order(symbol, 'sell', ema_short_quantity, df['close'].iloc[-1])
+            ema_short_stop_loss = (df['high'].iloc[-1] + df['open'].iloc[-2]) / 2
+            ema_sell_price = df['close'].iloc[-1]
+            send_to_telegram(f"ema조건충족\n매도 - Price: {df['close'].iloc[-1]}, Quantity: {ema_short_quantity}")
+            send_to_telegram(f"손절가 - {ema_short_stop_loss}")
+            ema_sell_signal = True
+            upper_band, lower_band = calculate_bollinger_bands(df, window=20, num_std_dev=2.5)
+            ema_future_close_price = lower_band.iloc[-1] # 과매도
+            now = datetime.datetime.now()
+            ema_entry_time = datetime.datetime(now.year, now.month, now.day, now.hour, 0)
+    
+    # 매수 또는 매도 신호가 발생한 경우
+    if ema_buy_signal or ema_sell_signal:
+        # 주문 정보 가져오기
+        order_info = exchange.fetch_order(ema_limit_order['id'], symbol)
+        order_status = None
+        if order_info is not None:
+            order_status = order_info['status']
+        
+        if order_status == 'open':
+            if datetime.datetime.now() >= ema_entry_time + datetime.timedelta(hours=(6 - ema_entry_time.hour % 6)):
+                exchange.cancel_order(ema_limit_order['id'], symbol)
+                ema_buy_signal = False
+                ema_sell_signal = False
+                send_to_telegram(f'시간초과로 인한 ema포지션 취소')
+        
+        else:
+            # 지정된 시간이 경과하면 주문을 종료하고 이익을 실현
+            if ema_buy_signal and datetime.datetime.now() >= ema_entry_time + datetime.timedelta(hours=(6 - ema_entry_time.hour % 6)):
+                place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
+                ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100
+                send_to_telegram(f"ema롱포지션 종료 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
+                ema_buy_signal = False
+
+            elif ema_sell_signal and datetime.datetime.now() >= ema_entry_time + datetime.timedelta(hours=(6 - ema_entry_time.hour % 6)):
+                place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
+                ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100
+                send_to_telegram(f"ema숏포지션 종료 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
+                ema_sell_signal = False
+
+            # 과매수시 익절
+            if ema_buy_signal == True:
+                if ema_future_close_price < df['close'].iloc[-1]:
+                    place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
+                    ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100
+                    send_to_telegram(f"ema롱포지션 종료 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
+                    ema_buy_signal = False
+                    waiting_ema_buy_signal = False
+                    time.sleep(60*60)
+                # 손절
+                elif ema_long_stop_loss > df['close'].iloc[-1]:
+                    place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
+                    ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100
+                    send_to_telegram(f"ema롱포지션 손절 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
+                    ema_buy_signal = False
+                    waiting_ema_buy_signal = False
+
+            # 과매도시 익절
+            elif ema_sell_signal == True:
+                if ema_future_close_price > df['close'].iloc[-1]:
+                    place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
+                    ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100
+                    send_to_telegram(f"ema숏포지션 종료 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
+                    ema_sell_signal = False
+                    waiting_ema_sell_signal = False
+                    time.sleep(60*60)
+                # 손절
+                elif ema_short_stop_loss < df['close'].iloc[-1]:
+                    place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
+                    ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100
+                    send_to_telegram(f"ema숏포지션 손절 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
+                    ema_sell_signal = False
+                    waiting_ema_sell_signal = False
+
+            # 1% 손익 시 포지션 종료
+            if ema_buy_signal == True:
+                if df['close'].iloc[-1] > ema_predicted_buy_low_price + ema_predicted_buy_low_price / 100:
+                    place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
+                    ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100
+                    send_to_telegram(f"ema롱포지션 종료 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
+                    ema_buy_signal = False
+                    waiting_ema_buy_signal = False
+            elif ema_sell_signal == True:
+                if df['close'].iloc[-1] < ema_predicted_sell_high_price - ema_predicted_sell_high_price / 100:
+                    place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
+                    ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100
+                    send_to_telegram(f"ema숏포지션 종료 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
+                    ema_sell_signal = False
+                    waiting_ema_sell_signal = False
+
 # 매매 주기 (예: 1초마다 전략 실행)
 trade_interval = 1  # 초 단위
 count=0
@@ -477,7 +640,11 @@ while True:
             
             # 변동성 돌파 전략 실행
             volatility_breakout_strategy(symbol, df, k_value)
+
+            #EMA 기반 트레이딩 전략 실행
+            generate_ema_signals(symbol, df)
             schedule.run_pending()
+
             if start == True:
                 # 변동성 조건 임의 계산
                 range = (df['high'].iloc[-2] - df['low'].iloc[-2]) * k_value
