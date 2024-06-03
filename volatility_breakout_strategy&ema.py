@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="")
+bot = telepot.Bot(token="7053735235:AAGWphCw4kfKnes2OuvXusDB0_g6FBWzpWQ")
 chat_id = "5820794752"
 
 # Binance API 설정
@@ -53,7 +53,7 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/start - 시작\n/stop - 중지\n/leverage(num) - leverage값을 설정\n 현재 leverage값 : {leverage}\n/set(k) - k 값을 설정\n 현재 k값 : {k_value}')
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/leverage(num) - leverage값을 설정\n 현재 leverage값 : {leverage}\n/set(k) - k 값을 설정\n 현재 k값 : {k_value}\n/Condition_fulfillment_symbols - 조건 충족 코인')
             send_to_telegram(f'/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_6h - 6시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
         elif msg['text'] == '/reset_signals':
             reset_signals
@@ -137,7 +137,12 @@ def handle(msg):
             send_to_telegram(f'predicted_high_price -> {predicted_high_price}')
             send_to_telegram(f'predicted_low_price -> {predicted_low_price}')
             send_to_telegram(f'predicted_close_price -> {predicted_close_price}')
-            
+
+        elif msg['text'] == 'Condition_fulfillment_symbols':
+            df = get_candles(exchange, symbol, timeframe=timeframe, limit=100)
+            symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "SOLUSDT", "DOTUSDT", "LTCUSDT", "MATICUSDT", "AVAXUSDT", "SHIBUSDT", "FILUSDT", "INJUSDT", "FETUSDT" ]
+            filtered_symbols = filter_symbols(symbols, df)
+            send_to_telegram(filtered_symbols)
 # 텔레그램 메시지 루프
 MessageLoop(bot, handle).run_as_thread()
 
@@ -181,18 +186,21 @@ def calculate_quantity(symbol):
 
 predicted_close_price = 0
 
-
-def predict_price(prediction_time='1h',add_mintes=0):
-    """Auto ARIMA로 다음 종가, 고가, 저가 가격 예측"""
+def get_candles(exchange, symbol, timeframe='6h', limit=100):
     candles = exchange.fetch_ohlcv(
-            symbol=symbol,
-            timeframe=prediction_time,
-            since=None,
-            limit=200
-        )
-
+        symbol=symbol,
+        timeframe=timeframe,
+        since=None,
+        limit=limit
+    )
     df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    return df
+def predict_price(prediction_time='1h',add_mintes=0):
+    """Auto ARIMA로 다음 종가, 고가, 저가 가격 예측"""
+
+    df = get_candles(exchange, symbol, timeframe=prediction_time, limit=200)
+
     global predicted_close_price, predicted_high_price, predicted_low_price
     
     # ARIMA 모델에 사용할 열 선택 및 이름 변경
@@ -641,6 +649,27 @@ def generate_ema_signals(symbol, df):
                     ema_sell_signal = False
                     waiting_ema_sell_signal = False
 
+def filter_symbols(symbols, df):
+    selected_symbols = []
+
+    for symbol in symbols:
+        ema_9 = calculate_ema(df, 9)
+        ema_21 = calculate_ema(df, 21)
+        ema_54 = calculate_ema(df, 54)
+
+        Buy_conditions = ema_9.iloc[-1] > ema_21.iloc[-1]
+        Sell_conditions = ema_9.iloc[-1] < ema_21.iloc[-1]
+        rsi_Buy_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) > (ema_21.iloc[-1] - ema_54.iloc[-1])
+        rsi_Sell_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) < (ema_21.iloc[-1] - ema_54.iloc[-1])
+        Previous_rsi_Buy_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) > (ema_9.iloc[-2] - ema_21.iloc[-2])
+        Previous_rsi_Sell_conditions = (ema_9.iloc[-1] - ema_21.iloc[-1]) < (ema_9.iloc[-2] - ema_21.iloc[-2])
+
+        if (Buy_conditions and rsi_Buy_conditions and Previous_rsi_Buy_conditions) or \
+           (Sell_conditions and rsi_Sell_conditions and Previous_rsi_Sell_conditions):
+            selected_symbols.append(symbol)
+
+    return selected_symbols
+
 # 매매 주기 (예: 1초마다 전략 실행)
 trade_interval = 1  # 초 단위
 count=0
@@ -648,15 +677,7 @@ start = True
 while True:
     try:
         if not stop:
-            candles = exchange.fetch_ohlcv(
-                symbol=symbol,
-                timeframe=timeframe,
-                since=None,
-                limit=100
-            )
-        
-            df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df = get_candles(exchange, symbol, timeframe=timeframe, limit=100)
             
             # 변동성 돌파 전략 실행
             volatility_breakout_strategy(symbol, df, k_value)
@@ -679,7 +700,7 @@ while True:
                 stoch_rsi_k, stoch_rsi_d = stochastic_rsi(df, period=14, smooth_k=3, smooth_d=3)
                 rsi = calculate_rsi(df, period=14)
                 send_to_telegram(f"현재시간 : {datetime.datetime.now()}")
-                send_to_telegram(f"range : {range}\ntarget_long : {target_long}\ntarget_short : {target_short}\nema_9 : {ema_9}\nema_21 : {ema_21}\nema_54 : {ema_54}\nupper_band, lower_band : {upper_band.iloc[-1], lower_band.iloc[-1]}\nstoch_rsi_k, stoch_rsi_d : {stoch_rsi_k.iloc[-1], stoch_rsi_d.iloc[-1]}\nrsi : {rsi['rsi'].iloc[-1]}\n종가 : {df['close'].iloc[-1]}")
+                send_to_telegram(f"range : {range}\ntarget_long : {target_long}\ntarget_short : {target_short}\nema_9 : {ema_9.iloc[-1]}\nema_21 : {ema_21.iloc[-1]}\nema_54 : {ema_54.iloc[-1]}\nupper_band, lower_band : {upper_band.iloc[-1], lower_band.iloc[-1]}\nstoch_rsi_k, stoch_rsi_d : {stoch_rsi_k.iloc[-1], stoch_rsi_d.iloc[-1]}\nrsi : {rsi['rsi'].iloc[-1]}\n종가 : {df['close'].iloc[-1]}")
                 send_to_telegram(f"{symbol} 매매 시작")
                 start = False
             # 대기 시간
