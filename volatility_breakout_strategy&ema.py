@@ -543,6 +543,8 @@ def generate_ema_signals(symbol, df):
             ema_long_quantity = calculate_quantity(symbol) * (leverage - 0.2)
             ema_limit_order = place_limit_order(symbol, 'buy', ema_long_quantity, df['close'].iloc[-1])
             ema_long_stop_loss = (df['low'].iloc[-1] + df['open'].iloc[-2]) / 2
+            if ema_long_stop_loss > ema_predicted_buy_low_price:
+                ema_long_stop_loss = ema_predicted_buy_low_price - (ema_long_stop_loss - ema_predicted_buy_low_price)
             ema_buy_price = df['close'].iloc[-1]
             send_to_telegram(f"ema조건충족\n매수 - Price: {ema_buy_price}, Quantity: {ema_long_quantity}")
             send_to_telegram(f"손절가 - {ema_long_stop_loss}")
@@ -565,6 +567,8 @@ def generate_ema_signals(symbol, df):
             ema_short_quantity = calculate_quantity(symbol) * (leverage - 0.2)
             ema_limit_order = place_limit_order(symbol, 'sell', ema_short_quantity, df['close'].iloc[-1])
             ema_short_stop_loss = (df['high'].iloc[-1] + df['open'].iloc[-2]) / 2
+            if ema_short_stop_loss < ema_predicted_sell_high_price:
+               ema_short_stop_loss = ema_predicted_sell_high_price + (ema_predicted_sell_high_price - ema_short_stop_loss)
             ema_sell_price = df['close'].iloc[-1]
             send_to_telegram(f"ema조건충족\n매도 - Price: {df['close'].iloc[-1]}, Quantity: {ema_short_quantity}")
             send_to_telegram(f"손절가 - {ema_short_stop_loss}")
