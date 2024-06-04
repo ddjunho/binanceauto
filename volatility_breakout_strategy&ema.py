@@ -378,6 +378,8 @@ def volatility_breakout_strategy(symbol, df, k_value):
                         long_quantity = calculate_quantity(symbol) * (leverage - 0.2)
                         limit_order = place_limit_order(symbol, 'buy', long_quantity, df['close'].iloc[-1])
                         long_stop_loss = (df['low'].iloc[-1] + df['open'].iloc[-2])/2 
+                        if long_stop_loss > predicted_buy_low_price:
+                            long_stop_loss = predicted_buy_low_price - (long_stop_loss - predicted_buy_low_price)
                         buy_price = df['close'].iloc[-1]
                         send_to_telegram(f"매수 - Price: {buy_price}, Quantity: {long_quantity}")
                         send_to_telegram(f"손절가 - {long_stop_loss}")
@@ -405,6 +407,8 @@ def volatility_breakout_strategy(symbol, df, k_value):
                         short_quantity = calculate_quantity(symbol) * (leverage - 0.2)
                         limit_order = place_limit_order(symbol, 'sell', short_quantity, df['close'].iloc[-1])
                         short_stop_loss = (df['high'].iloc[-1] + df['open'].iloc[-2])/2
+                        if short_stop_loss < predicted_sell_high_price:
+                            short_stop_loss = predicted_sell_high_price + (predicted_sell_high_price - short_stop_loss)
                         sell_price = df['close'].iloc[-1]
                         send_to_telegram(f"매도 - Price: {df['close'].iloc[-1]}, Quantity: {short_quantity}")
                         send_to_telegram(f"손절가 - {short_stop_loss}")
