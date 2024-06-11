@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="")
+bot = telepot.Bot(token=")
 chat_id = "5820794752"
 
 # Binance API 설정
@@ -40,10 +40,12 @@ def send_to_telegram(message):
     except Exception as e:
         send_to_telegram(f"An error occurred while sending to Telegram: {e}")
 
+
+Profit_Percentage = 150
 stop = False
 k_value = 0.55
 def handle(msg):
-    global stop, k_value, leverage
+    global stop, k_value, leverage, Profit_Percentage
     content_type, chat_type, chat_id = telepot.glance(msg)
     if content_type == 'text':
         if msg['text'] == '/start':
@@ -53,7 +55,7 @@ def handle(msg):
             send_to_telegram('Stopping...')
             stop = True
         elif msg['text'] == '/help':
-            send_to_telegram(f'/start - 시작\n/stop - 중지\n/leverage(num) - leverage값을 설정\n 현재 leverage값 : {leverage}\n/set(k) - k 값을 설정\n 현재 k값 : {k_value}\n/Condition_fulfillment_symbols - 조건 충족 코인')
+            send_to_telegram(f'/start - 시작\n/stop - 중지\n/leverage(num) - leverage값을 설정\n 현재 leverage값 : {leverage}\n/set(k) - k 값을 설정\n 현재 k값 : {k_value}\n/Profit_Percentage(num) - 익절 수치를 설정\n 현재 Profit_Percentage값 : {Profit_Percentage}->{round(100/Profit_Percentage,2)}%\n/Condition_fulfillment_symbols - 조건 충족 코인')
             send_to_telegram(f'/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_6h - 6시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
         elif msg['text'] == '/reset_signals':
             reset_signals
@@ -101,6 +103,30 @@ def handle(msg):
             k_value = 0.7
         elif msg['text'] == '/set(0.75)':
             k_value = 0.75
+
+        elif msg['text'] == '/Profit_Percentage(100)':
+            Profit_Percentage = 100 # 1
+        elif msg['text'] == '/Profit_Percentage(110)':
+            Profit_Percentage = 110 # 0.9090909...
+        elif msg['text'] == '/Profit_Percentage(120)':
+            Profit_Percentage = 120 # 0.833333...
+        elif msg['text'] == '/Profit_Percentage(130)':
+            Profit_Percentage = 130 # 0.769230...
+        elif msg['text'] == '/Profit_Percentage(140)':
+            Profit_Percentage = 140 # 0.714285...
+        elif msg['text'] == '/Profit_Percentage(150)':
+            Profit_Percentage = 150 # 0.666666...
+        elif msg['text'] == '/Profit_Percentage(160)':
+            Profit_Percentage = 160 # 0.625
+        elif msg['text'] == '/Profit_Percentage(170)':
+            Profit_Percentage = 170 # 0.588235...
+        elif msg['text'] == '/Profit_Percentage(180)':
+            Profit_Percentage = 180 # 0.555555...
+        elif msg['text'] == '/Profit_Percentage(190)':
+            Profit_Percentage = 190 # 0.526315...
+        elif msg['text'] == '/Profit_Percentage(200)':
+            Profit_Percentage = 200 # 0.5   
+
         elif msg['text'] == '/after_6h':
             send_to_telegram('모델학습 및 예측 중...')
             predict_price(prediction_time='6h')
@@ -319,7 +345,6 @@ schedule.every().day.at("06:01").do(reset_signals)
 schedule.every().day.at("12:01").do(reset_signals)
 schedule.every().day.at("18:01").do(reset_signals)
 
-Profit_Percentage = 150
 signal = False
 buy_signal = False
 sell_signal = False
@@ -712,7 +737,6 @@ while True:
             ema_sell_signal = False
             waiting_ema_buy_signal = False
             waiting_ema_sell_signal = False
-
             start = True
             time.sleep(60)
     except Exception as e:
@@ -720,6 +744,8 @@ while True:
         count+=1
         if count==10:
             stop = True
+            start = True
+            send_to_telegram("오류 발생으로 매매 중지")
             count=0
         pass
 print("nohup python3 volatility_strategy_binance_auto.py > output.log &")
