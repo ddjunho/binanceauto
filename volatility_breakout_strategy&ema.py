@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="")
+bot = telepot.Bot(token="7053735235:AAGWphCw4kfKnes2OuvXusDB0_g6FBWzpWQ")
 chat_id = "5820794752"
 
 # Binance API 설정
@@ -450,7 +450,6 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     send_to_telegram(f"롱포지션 종료 \nQuantity: {long_quantity}\nprofit: {profit}")
                     buy_signal = False
                     waiting_buy_signal = False
-                    time.sleep(60*60)
                 #손절
                 elif long_stop_loss > df['close'].iloc[-1]:
                     place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
@@ -467,7 +466,6 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     send_to_telegram(f"숏포지션 종료 \nQuantity: {short_quantity}\nprofit: {profit}")
                     sell_signal = False
                     waiting_sell_signal = False
-                    time.sleep(60*60)
                 #손절
                 elif short_stop_loss < df['close'].iloc[-1]:
                     place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
@@ -607,7 +605,6 @@ def generate_ema_signals(symbol, df):
                     send_to_telegram(f"ema롱포지션 종료 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
                     ema_buy_signal = False
                     waiting_ema_buy_signal = False
-                    time.sleep(60*60)
                 # 손절
                 elif ema_long_stop_loss > df['close'].iloc[-1]:
                     place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
@@ -624,7 +621,6 @@ def generate_ema_signals(symbol, df):
                     send_to_telegram(f"ema숏포지션 종료 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
                     ema_sell_signal = False
                     waiting_ema_sell_signal = False
-                    time.sleep(60*60)
                 # 손절
                 elif ema_short_stop_loss < df['close'].iloc[-1]:
                     place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
@@ -711,6 +707,12 @@ while True:
             waiting_buy_signal = False
             sell_signal = False
             waiting_sell_signal = False
+
+            ema_buy_signal = False
+            ema_sell_signal = False
+            waiting_ema_buy_signal = False
+            waiting_ema_sell_signal = False
+
             start = True
             time.sleep(60)
     except Exception as e:
