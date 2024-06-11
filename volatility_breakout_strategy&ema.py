@@ -644,7 +644,7 @@ def generate_ema_signals(symbol, df):
             elif ema_sell_signal == True:
                 if df['close'].iloc[-1] < ema_predicted_sell_high_price - ema_predicted_sell_high_price / Profit_Percentage :
                     place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
-                    ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100 * leverage
+                    ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100 * leverage
                     send_to_telegram(f"ema숏포지션 종료 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
                     ema_sell_signal = False
                     waiting_ema_sell_signal = False
