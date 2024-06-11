@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token="7053735235:AAGWphCw4kfKnes2OuvXusDB0_g6FBWzpWQ")
+bot = telepot.Bot(token="")
 chat_id = "5820794752"
 
 # Binance API 설정
