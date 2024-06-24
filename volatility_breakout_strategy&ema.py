@@ -8,7 +8,7 @@ from pmdarima import auto_arima
 import telepot
 from telepot.loop import MessageLoop
 
-bot = telepot.Bot(token=")
+bot = telepot.Bot(token="")
 chat_id = "5820794752"
 
 # Binance API 설정
@@ -30,7 +30,7 @@ symbol = 'ETHUSDT'
 timeframe = '6h'
 
 # 레버리지 설정
-leverage = 5
+leverage = 4
 exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage*2})
 
 # 텔레그램으로 메시지를 보내는 함수
@@ -59,6 +59,8 @@ def handle(msg):
             send_to_telegram(f'/after_3m - 3분뒤 가격예측\n/after_5m - 5분뒤 가격예측\n/after_15m - 15분뒤 가격예측\n/after_1h - 1시간뒤 가격예측\n/after_6h - 6시간뒤 가격예측\n/after_1d - 1일뒤 가격예측')
         elif msg['text'] == '/reset_signals':
             reset_signals
+        elif msg['text'] == '/leverage':
+            send_to_telegram('/leverage(1~10)')
         elif msg['text'] == '/leverage(1)':
             leverage = 1
         elif msg['text'] == '/leverage(2)':
@@ -79,6 +81,9 @@ def handle(msg):
             leverage = 9
         elif msg['text'] == '/leverage(10)':
             leverage = 10
+            
+        elif msg['text'] == '/set':
+            send_to_telegram('0.2 ~ 0.75 까지 0.05단위로 k값 설정')
         elif msg['text'] == '/set(0.2)':
             k_value = 0.2
         elif msg['text'] == '/set(0.25)':
@@ -103,7 +108,8 @@ def handle(msg):
             k_value = 0.7
         elif msg['text'] == '/set(0.75)':
             k_value = 0.75
-
+        elif msg['text'] == '/Profit_Percentage':
+            send_to_telegram('/Profit_Percentage(100) # 1.00\n/Profit_Percentage(110) # 0.91\n/Profit_Percentage(120) # 0.83\n/Profit_Percentage(130) # 0.77\n/Profit_Percentage(140) # 0.71\n/Profit_Percentage(150) # 0.67\n/Profit_Percentage(160) # 0.62\n/Profit_Percentage(170) # 0.59\n/Profit_Percentage(180) # 0.56\n/Profit_Percentage(190) # 0.53\n/Profit_Percentage(200) # 0.50')
         elif msg['text'] == '/Profit_Percentage(100)':
             Profit_Percentage = 100 # 1
         elif msg['text'] == '/Profit_Percentage(110)':
@@ -179,6 +185,16 @@ def place_limit_order(symbol, side, amount, price):
         side=side,
         amount=amount,
         price=price
+    )
+    return order
+
+#시장가 주문
+def place_market_order(symbol, side, amount):
+    order = exchange.create_order(
+        symbol=symbol,
+        type="MARKET",
+        side=side,
+        amount=amount
     )
     return order
 
@@ -477,7 +493,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     waiting_buy_signal = False
                 #손절
                 elif long_stop_loss > df['close'].iloc[-1]:
-                    place_limit_order(symbol, 'sell', long_quantity, df['close'].iloc[-1])
+                    place_market_order(symbol, 'sell', long_quantity)
                     profit = (df['close'].iloc[-1] - buy_price) / buy_price * 100 * leverage  # leverage 적용
                     send_to_telegram(f"롱포지션 손절 \nQuantity: {long_quantity}\nprofit: {profit}")
                     buy_signal = False
@@ -493,7 +509,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                     waiting_sell_signal = False
                 #손절
                 elif short_stop_loss < df['close'].iloc[-1]:
-                    place_limit_order(symbol, 'buy', short_quantity, df['close'].iloc[-1])
+                    place_market_order(symbol, 'buy', short_quantity)
                     profit = -(df['close'].iloc[-1] - sell_price) / sell_price * 100 * leverage  # leverage 적용
                     send_to_telegram(f"숏포지션 손절 \nQuantity: {short_quantity}\nprofit: {profit}")
                     sell_signal = False
@@ -632,7 +648,7 @@ def generate_ema_signals(symbol, df):
                     waiting_ema_buy_signal = False
                 # 손절
                 elif ema_long_stop_loss > df['close'].iloc[-1]:
-                    place_limit_order(symbol, 'sell', ema_long_quantity, df['close'].iloc[-1])
+                    place_market_order(symbol, 'sell', ema_long_quantity)
                     ema_profit = (df['close'].iloc[-1] - ema_buy_price) / ema_buy_price * 100 * leverage  # leverage 적용
                     send_to_telegram(f"ema롱포지션 손절 \nQuantity: {ema_long_quantity}\nprofit: {ema_profit}")
                     ema_buy_signal = False
@@ -648,7 +664,7 @@ def generate_ema_signals(symbol, df):
                     waiting_ema_sell_signal = False
                 # 손절
                 elif ema_short_stop_loss < df['close'].iloc[-1]:
-                    place_limit_order(symbol, 'buy', ema_short_quantity, df['close'].iloc[-1])
+                    place_market_order(symbol, 'buy', ema_short_quantity)
                     ema_profit = -(df['close'].iloc[-1] - ema_sell_price) / ema_sell_price * 100 * leverage  # leverage 적용
                     send_to_telegram(f"ema숏포지션 손절 \nQuantity: {ema_short_quantity}\nprofit: {ema_profit}")
                     ema_sell_signal = False
