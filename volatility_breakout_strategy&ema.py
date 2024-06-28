@@ -32,7 +32,7 @@ timeframe = '6h'
 
 # 레버리지 설정
 leverage = 4
-exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage*2})
+exchange.fapiPrivate_post_leverage({'symbol': symbol, 'leverage': leverage*2+2})
 
 # 텔레그램으로 메시지를 보내는 함수
 def send_to_telegram(message):
@@ -263,6 +263,7 @@ def get_candles(exchange, symbol, timeframe='6h', limit=100):
     df = pd.DataFrame(data=candles, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     return df
+
 def predict_price(prediction_time='1h'):
     """Auto ARIMA로 다음 종가, 고가, 저가 가격 예측"""
 
@@ -766,6 +767,49 @@ def filter_symbols(symbols):
 
     return selected_symbols
 
+
+us_long = False
+us_short = False
+def Ultra_Scalping():
+    global us_long, us_short, us_long_quantity, us_short_quantity, us_long_price, us_short_price
+    df = get_candles(exchange, symbol, timeframe='5m', limit=50)
+    stoch_rsi_k, stoch_rsi_d = stochastic_rsi(df, period=14, smooth_k=3, smooth_d=3)
+    ema_9 = calculate_ema(df, 9)
+    ema_21 = calculate_ema(df, 21)
+    
+    if not us_long:
+        if stoch_rsi_k > 10 and stoch_rsi_d < 10:
+            us_long = True
+            us_long_quantity = calculate_quantity(symbol) * 2
+            us_long_price = df['close'].iloc[-1]
+            place_limit_order(symbol, 'buy', us_long_quantity, df['close'].iloc[-1])
+    
+    if not us_short:
+        if stoch_rsi_k < 90 and stoch_rsi_d > 90:
+            us_short = True
+            us_short_quantity = calculate_quantity(symbol) * 2
+            us_short_price = df['close'].iloc[-1]
+            place_limit_order(symbol, 'sell', us_short_quantity, df['close'].iloc[-1])
+
+    if us_long:
+        if df['close'].iloc[-1] > ema_21:
+            us_long = False
+            place_limit_order(symbol, 'sell', us_long_quantity, df['close'].iloc[-1])
+        elif us_long_price > ema_9:
+            us_long = False
+            place_market_order(symbol, 'sell', us_long_quantity)
+
+    if us_short:
+        if df['close'].iloc[-1] < ema_21:
+            us_short = False
+            place_limit_order(symbol, 'buy', us_short_quantity, df['close'].iloc[-1])
+        elif us_short_price < ema_9:
+            us_short = False
+            place_market_order(symbol, 'buy', us_short_quantity)
+
+
+
+
 # 매매 주기 (예: 1초마다 전략 실행)
 trade_interval = 1  # 초 단위
 count=0
@@ -779,9 +823,11 @@ while True:
             # 변동성 돌파 전략 실행
             volatility_breakout_strategy(symbol, df, k_value)
 
-            #EMA 기반 트레이딩 전략 실행
+            # EMA 기반 트레이딩 전략 실행
             generate_ema_signals(symbol, df)
 
+            # 초단타 실행
+            Ultra_Scalping()
             schedule.run_pending()
 
             if start == True:
