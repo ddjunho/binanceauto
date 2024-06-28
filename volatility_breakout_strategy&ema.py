@@ -768,6 +768,7 @@ def filter_symbols(symbols):
     return selected_symbols
 
 
+
 us_long = False
 us_short = False
 def Ultra_Scalping():
@@ -778,32 +779,32 @@ def Ultra_Scalping():
     ema_21 = calculate_ema(df, 21)
     
     if not us_long:
-        if stoch_rsi_k > 10 and stoch_rsi_d < 10:
+        if stoch_rsi_k.iloc[-1] > 10 > stoch_rsi_d.iloc[-1]:
             us_long = True
             us_long_quantity = calculate_quantity(symbol) * 2
             us_long_price = df['close'].iloc[-1]
             place_limit_order(symbol, 'buy', us_long_quantity, df['close'].iloc[-1])
     
     if not us_short:
-        if stoch_rsi_k < 90 and stoch_rsi_d > 90:
+        if stoch_rsi_k.iloc[-1] < 90 < stoch_rsi_d.iloc[-1]:
             us_short = True
             us_short_quantity = calculate_quantity(symbol) * 2
             us_short_price = df['close'].iloc[-1]
             place_limit_order(symbol, 'sell', us_short_quantity, df['close'].iloc[-1])
 
     if us_long:
-        if df['close'].iloc[-1] > ema_21:
+        if df['close'].iloc[-1] > ema_21.iloc[-1]:
             us_long = False
             place_limit_order(symbol, 'sell', us_long_quantity, df['close'].iloc[-1])
-        elif us_long_price > ema_9:
+        elif us_long_price > ema_9.iloc[-1]:
             us_long = False
             place_market_order(symbol, 'sell', us_long_quantity)
 
     if us_short:
-        if df['close'].iloc[-1] < ema_21:
+        if df['close'].iloc[-1] < ema_21.iloc[-1]:
             us_short = False
             place_limit_order(symbol, 'buy', us_short_quantity, df['close'].iloc[-1])
-        elif us_short_price < ema_9:
+        elif us_short_price < ema_9.iloc[-1]:
             us_short = False
             place_market_order(symbol, 'buy', us_short_quantity)
 
