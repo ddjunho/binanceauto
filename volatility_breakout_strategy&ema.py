@@ -325,11 +325,14 @@ def calculate_ema(data, period):
     ema = data['close'].ewm(span=period, adjust=False).mean()
     return ema
 
-
 def calculate_rsi(data, period=14):
     delta = data['close'].diff()
-    avg_gain = delta.where(delta > 0, 0).rolling(window=period, center = False).mean()
-    avg_loss = -delta.where(delta < 0, 0).rolling(window=period, center = False).mean()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.ewm(span=period, adjust=False).mean()
+    avg_loss = loss.ewm(span=period, adjust=False).mean()
+
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     data['rsi'] = rsi
@@ -348,7 +351,7 @@ def stochastic_rsi(data, period=14, smooth_k=3, smooth_d=3):
     - 'stoch_rsi_k' 및 'stoch_rsi_d'.
     """
     # RSI 계산
-    data = calculate_rsi(data, period)
+    data = calculate_rsi(data, period+1)
 
     # 스토케스틱 RSI (%K) 계산
     min_rsi = data['rsi'].rolling(window=period, center = False).min()
@@ -427,7 +430,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
         is_doji = False
     # 매수 및 매도 주문 로직
     if buy_signal == False and is_doji == False:
-        if stoch_rsi_k.iloc[-1]<100 and stoch_rsi_d.iloc[-1] < 95:
+        if stoch_rsi_k.iloc[-2]<100 and stoch_rsi_d.iloc[-2] < 95:
             # 어제 종가보다 오늘 시가가 높고, 오늘 고가가 목표 롱 가격을 돌파한 경우 혹은 역추세 돌파시
             if (df['open'].iloc[-2] < df['close'].iloc[-2]) or (df['high'].iloc[-1] > target_long2):
                 if df['high'].iloc[-1] > target_long:
@@ -466,7 +469,7 @@ def volatility_breakout_strategy(symbol, df, k_value):
                             entry_time = datetime.datetime(now.year, now.month, now.day, now.hour, 0)
 
     if sell_signal == False and is_doji == False:
-        if stoch_rsi_k.iloc[-1] > 0 and stoch_rsi_d.iloc[-1] > 5:
+        if stoch_rsi_k.iloc[-2] > 0 and stoch_rsi_d.iloc[-2] > 5:
             # 어제 종가보다 오늘 시가가 낮고, 오늘 저가가 목표 숏 가격을 돌파한 경우 혹은 역추세 돌파시
             if (df['open'].iloc[-2] > df['close'].iloc[-2]) or (df['low'].iloc[-1] < target_short2):
                 if df['low'].iloc[-1] < target_short:
@@ -768,7 +771,6 @@ def filter_symbols(symbols):
     return selected_symbols
 
 
-
 us_long = False
 us_short = False
 def Ultra_Scalping():
@@ -779,18 +781,20 @@ def Ultra_Scalping():
     ema_21 = calculate_ema(df, 21)
     
     if not us_long:
-        if stoch_rsi_k.iloc[-1] > 10 > stoch_rsi_d.iloc[-1]:
-            us_long = True
-            us_long_quantity = calculate_quantity(symbol) * 2
-            us_long_price = df['close'].iloc[-1]
-            place_limit_order(symbol, 'buy', us_long_quantity, df['close'].iloc[-1])
+        if ema_21.iloc[-1] > df['close'].iloc[-1]:
+            if stoch_rsi_k.iloc[-2] > 10 > stoch_rsi_d.iloc[-2]:
+                us_long = True
+                us_long_quantity = calculate_quantity(symbol) * 2
+                us_long_price = df['close'].iloc[-1]
+                place_limit_order(symbol, 'buy', us_long_quantity, df['close'].iloc[-1])
     
     if not us_short:
-        if stoch_rsi_k.iloc[-1] < 90 < stoch_rsi_d.iloc[-1]:
-            us_short = True
-            us_short_quantity = calculate_quantity(symbol) * 2
-            us_short_price = df['close'].iloc[-1]
-            place_limit_order(symbol, 'sell', us_short_quantity, df['close'].iloc[-1])
+        if ema_21.iloc[-1] < df['close'].iloc[-1]:
+            if stoch_rsi_k.iloc[-2] < 90 < stoch_rsi_d.iloc[-2]:
+                us_short = True
+                us_short_quantity = calculate_quantity(symbol) * 2
+                us_short_price = df['close'].iloc[-1]
+                place_limit_order(symbol, 'sell', us_short_quantity, df['close'].iloc[-1])
 
     if us_long:
         if df['close'].iloc[-1] > ema_21.iloc[-1]:
@@ -845,7 +849,7 @@ while True:
                 stoch_rsi_k, stoch_rsi_d = stochastic_rsi(df, period=14, smooth_k=3, smooth_d=3)
                 rsi = calculate_rsi(df, period=14)
                 send_to_telegram(f"UTC : {datetime.datetime.now()}")
-                send_to_telegram(f"range : {range}\ntarget_long : {target_long}\ntarget_short : {target_short}\nema_9 : {ema_9.iloc[-1]}\nema_21 : {ema_21.iloc[-1]}\nema_54 : {ema_54.iloc[-1]}\nupper_band, lower_band : {upper_band.iloc[-1], lower_band.iloc[-1]}\nstoch_rsi_k, stoch_rsi_d : {stoch_rsi_k.iloc[-1], stoch_rsi_d.iloc[-1]}\nrsi : {rsi['rsi'].iloc[-1]}\n종가 : {df['close'].iloc[-1]}")
+                send_to_telegram(f"range : {range}\ntarget_long : {target_long}\ntarget_short : {target_short}\nema_9 : {ema_9.iloc[-1]}\nema_21 : {ema_21.iloc[-1]}\nema_54 : {ema_54.iloc[-1]}\nupper_band, lower_band : {upper_band.iloc[-1], lower_band.iloc[-1]}\nstoch_rsi_k, stoch_rsi_d : {stoch_rsi_k.iloc[-2], stoch_rsi_d.iloc[-2]}\nrsi : {rsi['rsi'].iloc[-1]}\n종가 : {df['close'].iloc[-1]}")
                 send_to_telegram(f"{symbol} 매매 시작")
                 start = False
             # 대기 시간
